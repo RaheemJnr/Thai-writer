@@ -1,5 +1,6 @@
 package com.rjnr.thaiwrter.ui.drawing
 
+import android.location.Location.distanceBetween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -23,7 +24,9 @@ import com.rjnr.thaiwrter.data.models.ThaiCharacter
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 //@Composable
 //fun DrawingCanvas(
@@ -135,6 +138,17 @@ fun DrawingCanvas(
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { offset ->
+                        if (currentCharacter == null) return@detectDragGestures
+
+                        // Check if starting near the correct point
+                        val targetStart = currentCharacter.strokeData.strokes[currentStrokeIndex]
+                            .points.first()
+                            .let { Point(it.x * size.width, it.y * size.height) }
+
+                        if (distanceBetween(offset, targetStart) > 50f) {
+                            // Invalid start position
+                            return@detectDragGestures
+                        }
                         currentPath = Path().apply {
                             moveTo(offset.x, offset.y)
                         }
@@ -167,85 +181,126 @@ fun DrawingCanvas(
 
 
             // Draw all strokes in light gray
+//            strokeData.strokes.forEachIndexed { index, stroke ->
+//                val strokeColor = when {
+//                    index < currentStrokeIndex -> Color.LightGray.copy(alpha = 0.2f) // Past strokes
+//                    index == currentStrokeIndex -> Color.Gray // Current stroke - make it darker
+//                    else -> Color.LightGray.copy(alpha = 0.3f) // Future strokes
+//                }
+//                // Draw stroke path
+//                drawLine(
+//                    color = strokeColor,
+//                    start = Offset(stroke.x1 * size.width, stroke.y1 * size.height),
+//                    end = Offset(stroke.x2 * size.width, stroke.y2 * size.height),
+//                    strokeWidth = 8f,
+//                    pathEffect = if (index == currentStrokeIndex) {
+//                        PathEffect.dashPathEffect(floatArrayOf(20f, 10f))
+//                    } else {
+//                        null
+//                    }
+//                )
+//
+//                if (index == currentStrokeIndex) {
+//                    // Draw start point (green circle)
+//                    drawCircle(
+//                        color = Color.Green,
+//                        radius = 15f,
+//                        center = Offset(stroke.x1 * size.width, stroke.y1 * size.height)
+//                    )
+//
+//                    // Draw end point (red circle)
+//                    drawCircle(
+//                        color = Color.Red,
+//                        radius = 15f,
+//                        center = Offset(stroke.x2 * size.width, stroke.y2 * size.height)
+//                    )
+//
+//                    // Draw direction arrow
+//                    val arrowPath = Path().apply {
+//                        val startX = stroke.x1 * size.width
+//                        val startY = stroke.y1 * size.height
+//                        val endX = stroke.x2 * size.width
+//                        val endY = stroke.y2 * size.height
+//
+//                        // Calculate middle point
+//                        val midX = (startX + endX) / 2
+//                        val midY = (startY + endY) / 2
+//
+//                        // Draw arrow at middle point
+//                        val angle = atan2(endY - startY, endX - startX)
+//                        val arrowSize = 30f
+//
+//                        moveTo(
+//                            midX - arrowSize * cos(angle - PI / 6).toFloat(),
+//                            midY - arrowSize * sin(angle - PI / 6).toFloat()
+//                        )
+//                        lineTo(midX, midY)
+//                        lineTo(
+//                            midX - arrowSize * cos(angle + PI / 6).toFloat(),
+//                            midY - arrowSize * sin(angle + PI / 6).toFloat()
+//                        )
+//                    }
+//
+//                    drawPath(
+//                        path = arrowPath,
+//                        color = Color.Blue.copy(alpha = 0.6f),
+//                        style = Stroke(width = 5f)
+//                    )
+//
+//                    // Draw stroke number
+//                    drawContext.canvas.nativeCanvas.apply {
+//                        drawText(
+//                            (index + 1).toString(),
+//                            stroke.x1 * size.width - 25f,
+//                            stroke.y1 * size.height - 25f,
+//                            android.graphics.Paint().apply {
+//                                color = android.graphics.Color.BLUE
+//                                textSize = 40f
+//                                textAlign = android.graphics.Paint.Align.CENTER
+//                            }
+//                        )
+//                    }
+//                }
+//            }
+            // Inside Canvas block where you draw the guide character
             strokeData.strokes.forEachIndexed { index, stroke ->
                 val strokeColor = when {
-                    index < currentStrokeIndex -> Color.LightGray.copy(alpha = 0.2f) // Past strokes
-                    index == currentStrokeIndex -> Color.Gray // Current stroke - make it darker
-                    else -> Color.LightGray.copy(alpha = 0.3f) // Future strokes
+                    index < currentStrokeIndex -> Color.LightGray.copy(alpha = 0.2f)
+                    index == currentStrokeIndex -> Color.Gray
+                    else -> Color.LightGray.copy(alpha = 0.3f)
                 }
-                // Draw stroke path
-                drawLine(
-                    color = strokeColor,
-                    start = Offset(stroke.x1 * size.width, stroke.y1 * size.height),
-                    end = Offset(stroke.x2 * size.width, stroke.y2 * size.height),
-                    strokeWidth = 8f,
-                    pathEffect = if (index == currentStrokeIndex) {
-                        PathEffect.dashPathEffect(floatArrayOf(20f, 10f))
-                    } else {
-                        null
+
+                // Draw entire stroke path
+                val guidePath = Path().apply {
+                    stroke.points.forEachIndexed { i, point ->
+                        val x = point.x * size.width
+                        val y = point.y * size.height
+                        if (i == 0) moveTo(x, y) else lineTo(x, y)
                     }
+                }
+
+                drawPath(
+                    path = guidePath,
+                    color = strokeColor,
+                    style = Stroke(width = 8f)
                 )
 
                 if (index == currentStrokeIndex) {
-                    // Draw start point (green circle)
+                    // Draw start/end markers
+                    val start = stroke.points.first()
+                    val end = stroke.points.last()
+
                     drawCircle(
                         color = Color.Green,
-                        radius = 15f,
-                        center = Offset(stroke.x1 * size.width, stroke.y1 * size.height)
+                        center = Offset(start.x * size.width, start.y * size.height),
+                        radius = 15f
                     )
 
-                    // Draw end point (red circle)
                     drawCircle(
                         color = Color.Red,
-                        radius = 15f,
-                        center = Offset(stroke.x2 * size.width, stroke.y2 * size.height)
+                        center = Offset(end.x * size.width, end.y * size.height),
+                        radius = 15f
                     )
-
-                    // Draw direction arrow
-                    val arrowPath = Path().apply {
-                        val startX = stroke.x1 * size.width
-                        val startY = stroke.y1 * size.height
-                        val endX = stroke.x2 * size.width
-                        val endY = stroke.y2 * size.height
-
-                        // Calculate middle point
-                        val midX = (startX + endX) / 2
-                        val midY = (startY + endY) / 2
-
-                        // Draw arrow at middle point
-                        val angle = atan2(endY - startY, endX - startX)
-                        val arrowSize = 30f
-
-                        moveTo(
-                            midX - arrowSize * cos(angle - PI / 6).toFloat(),
-                            midY - arrowSize * sin(angle - PI / 6).toFloat()
-                        )
-                        lineTo(midX, midY)
-                        lineTo(
-                            midX - arrowSize * cos(angle + PI / 6).toFloat(),
-                            midY - arrowSize * sin(angle + PI / 6).toFloat()
-                        )
-                    }
-
-                    drawPath(
-                        path = arrowPath,
-                        color = Color.Blue.copy(alpha = 0.6f),
-                        style = Stroke(width = 5f)
-                    )
-
-                    // Draw stroke number
-                    drawContext.canvas.nativeCanvas.apply {
-                        drawText(
-                            (index + 1).toString(),
-                            stroke.x1 * size.width - 25f,
-                            stroke.y1 * size.height - 25f,
-                            android.graphics.Paint().apply {
-                                color = android.graphics.Color.BLUE
-                                textSize = 40f
-                                textAlign = android.graphics.Paint.Align.CENTER
-                            }
-                        )
-                    }
                 }
             }
         }
@@ -266,6 +321,10 @@ fun DrawingCanvas(
             )
         }
     }
+}
+
+fun distanceBetween(offset: Offset, point: Point): Float {
+    return sqrt((offset.x - point.x).pow(2) + (offset.y - point.y).pow(2))
 }
 
 data class PathWithColor(

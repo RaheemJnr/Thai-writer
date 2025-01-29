@@ -25,6 +25,10 @@ class CharacterPracticeViewModel(
     private val _strokeFeedback = MutableStateFlow<StrokeFeedback?>(null)
     val strokeFeedback = _strokeFeedback.asStateFlow()
 
+    //
+    private val _isDrawingEnabled = MutableStateFlow(true)
+
+
 
     private val _paths = MutableStateFlow<List<PathWithColor>>(emptyList())
     val paths = _paths.asStateFlow()
@@ -107,49 +111,107 @@ class CharacterPracticeViewModel(
 //            }
 //        }
 //    }
+//    fun validateStroke(points: List<Point>, width: Int, height: Int) {
+//        viewModelScope.launch {
+//            currentCharacter.value?.let { char ->
+//                if (_currentStrokeIndex.value < char.strokeData.strokes.size) {
+//                    val isValid = StrokeValidator.validateStroke(
+//                        drawnPoints = points,
+//                        targetStroke = char.strokeData.strokes[_currentStrokeIndex.value],
+//                        canvasWidth = width.toFloat(),
+//                        canvasHeight = height.toFloat()
+//                    )
+//
+//                    // Create path from points
+//                    val newPath = Path().apply {
+//                        moveTo(points.first().x, points.first().y)
+//                        points.drop(1).forEach { lineTo(it.x, it.y) }
+//                    }
+//
+//                    // Add new path with color based on validation
+//                    _paths.value = _paths.value + PathWithColor(
+//                        path = newPath,
+//                        color = if (isValid) Color.Green else Color.Red
+//                    )
+//
+//                    if (isValid) {
+//                        _strokeFeedback.value = StrokeFeedback.Correct
+//                        _currentStrokeIndex.value += 1  // Move to next stroke
+//
+//                        // Check if character is complete
+//                        if (_currentStrokeIndex.value >= char.strokeData.strokes.size) {
+//                            updateProgress()
+//                            delay(500)
+//                            loadNextCharacter()
+//                        }
+//                    } else {
+//                        _strokeFeedback.value = StrokeFeedback.Incorrect
+//                    }
+//
+//                    delay(1000)
+//                    _strokeFeedback.value = null
+//                }
+//            }
+//        }
+//    }
     fun validateStroke(points: List<Point>, width: Int, height: Int) {
         viewModelScope.launch {
+            if (!_isDrawingEnabled.value) return@launch
+
+            _isDrawingEnabled.value = false
             currentCharacter.value?.let { char ->
-                if (_currentStrokeIndex.value < char.strokeData.strokes.size) {
-                    val isValid = StrokeValidator.validateStroke(
-                        drawnPoints = points,
-                        targetStroke = char.strokeData.strokes[_currentStrokeIndex.value],
-                        canvasWidth = width.toFloat(),
-                        canvasHeight = height.toFloat()
-                    )
+                if (currentStrokeIndex.value >= char.strokeData.strokes.size) return@launch
 
-                    // Create path from points
-                    val newPath = Path().apply {
-                        moveTo(points.first().x, points.first().y)
-                        points.drop(1).forEach { lineTo(it.x, it.y) }
+                val isValid = StrokeValidator.validateStroke(
+                    drawnPoints = points,
+                    targetStroke = char.strokeData.strokes[currentStrokeIndex.value],
+                    canvasWidth = width.toFloat(),
+                    canvasHeight = height.toFloat()
+                )
+
+                // Update paths
+                val newPath = Path().apply {
+                    points.forEachIndexed { i, p ->
+                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
                     }
+                }
 
-                    // Add new path with color based on validation
-                    _paths.value = _paths.value + PathWithColor(
-                        path = newPath,
-                        color = if (isValid) Color.Green else Color.Red
-                    )
+                _paths.value = _paths.value + PathWithColor(
+                    path = newPath,
+                    color = if (isValid) Color.Green.copy(alpha = 0.5f) else Color.Red.copy(alpha = 0.3f)
+                )
 
-                    if (isValid) {
-                        _strokeFeedback.value = StrokeFeedback.Correct
-                        _currentStrokeIndex.value += 1  // Move to next stroke
-
-                        // Check if character is complete
-                        if (_currentStrokeIndex.value >= char.strokeData.strokes.size) {
-                            updateProgress()
-                            delay(500)
-                            loadNextCharacter()
-                        }
-                    } else {
-                        _strokeFeedback.value = StrokeFeedback.Incorrect
-                    }
-
+                if (isValid) {
+                    handleCorrectStroke()
+                } else {
+                    _strokeFeedback.value = StrokeFeedback.Incorrect
                     delay(1000)
                     _strokeFeedback.value = null
                 }
             }
+            _isDrawingEnabled.value = true
         }
     }
+
+    private fun handleCorrectStroke() {
+        viewModelScope.launch {
+            _strokeFeedback.value = StrokeFeedback.Correct
+            _currentStrokeIndex.value += 1
+
+            if (_currentStrokeIndex.value >= (currentCharacter.value?.strokeData?.strokes?.size
+                    ?: 0)
+            ) {
+
+                delay(500)
+                updateProgress()
+                loadNextCharacter()
+            }
+
+            delay(500)
+            _strokeFeedback.value = null
+        }
+    }
+
 
     fun clearCanvas() {
         _paths.value = emptyList()
