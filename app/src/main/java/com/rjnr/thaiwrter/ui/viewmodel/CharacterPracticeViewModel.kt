@@ -5,11 +5,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rjnr.thaiwrter.data.models.Point
 import com.rjnr.thaiwrter.data.models.ThaiCharacter
 import com.rjnr.thaiwrter.data.models.UserProgress
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
 import com.rjnr.thaiwrter.ui.drawing.PathWithColor
-import com.rjnr.thaiwrter.ui.drawing.Point
 import com.rjnr.thaiwrter.utils.StrokeValidator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,8 @@ import java.util.concurrent.TimeUnit
 
 class CharacterPracticeViewModel(
     private val repository: ThaiLanguageRepository
-) : ViewModel() {
+) : ViewModel()
+{
     private val _currentCharacter = MutableStateFlow<ThaiCharacter?>(null)
     val currentCharacter = _currentCharacter.asStateFlow()
     private val _strokeFeedback = MutableStateFlow<StrokeFeedback?>(null)

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import com.rjnr.thaiwrter.data.models.Point
 import com.rjnr.thaiwrter.data.models.ThaiCharacter
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -174,6 +175,33 @@ fun DrawingCanvas(
     ) {
         // Draw background
         drawRect(Color.White, Offset.Zero, size)
+
+        // 2. Draw grid lines
+        val center = Offset(size.width / 2, size.height / 2)
+        drawLine(
+            color = Color.LightGray,
+            start = Offset(0f, center.y),
+            end = Offset(size.width, center.y),
+            strokeWidth = 2f
+        )
+        drawLine(
+            color = Color.LightGray,
+            start = Offset(center.x, 0f),
+            end = Offset(center.x, size.height),
+            strokeWidth = 2f
+        )
+        drawLine(
+            color = Color.LightGray,
+            start = Offset(0f, 0f),
+            end = Offset(size.width, size.height),
+            strokeWidth = 2f
+        )
+        drawLine(
+            color = Color.LightGray,
+            start = Offset(size.width, 0f),
+            end = Offset(0f, size.height),
+            strokeWidth = 2f
+        )
 
         // Draw guide character
         currentCharacter?.let { char ->
@@ -332,4 +360,3 @@ data class PathWithColor(
     val color: Color
 )
 
-data class Point(val x: Float, val y: Float)

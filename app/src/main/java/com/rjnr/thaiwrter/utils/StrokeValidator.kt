@@ -1,12 +1,9 @@
 package com.rjnr.thaiwrter.utils
 
+import com.rjnr.thaiwrter.data.models.Point
 import com.rjnr.thaiwrter.data.models.Stroke
-import com.rjnr.thaiwrter.ui.drawing.Point
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.atan2
+import kotlin.math.pow
 import kotlin.math.sqrt
-import kotlin.math.*
 
 object StrokeValidator {
     private const val RESAMPLE_POINTS = 64
