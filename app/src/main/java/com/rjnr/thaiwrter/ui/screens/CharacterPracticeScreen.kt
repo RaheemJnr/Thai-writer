@@ -173,7 +173,7 @@ fun CharacterPracticeScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Prediction: ${pred.characterIndex}",
+                            text = "Prediction: ${pred.character}",
                             style = MaterialTheme.typography.headlineMedium
                         )
                         Text(

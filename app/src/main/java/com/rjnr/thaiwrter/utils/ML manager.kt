@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.util.Log
 import com.rjnr.thaiwrter.data.models.Point
@@ -126,6 +128,9 @@ class MLStrokeValidator(private val context: Context) {
     }
 
     private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
+        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
+        val grayscaleBitmap = convertToGrayscale(scaledBitmap)
+
         val inputArray = Array(1) {
             Array(imageSize) {
                 Array(imageSize) {
@@ -134,11 +139,12 @@ class MLStrokeValidator(private val context: Context) {
             }
         }
 
+        // Match the training preprocessing exactly
         for (y in 0 until imageSize) {
             for (x in 0 until imageSize) {
-                val pixel = bitmap.getPixel(x, y)
-                // Convert to grayscale and normalize
-                val gray = 1f - (Color.red(pixel) / 255f)
+                val pixel = grayscaleBitmap.getPixel(x, y)
+                // Convert to grayscale and normalize to [0,1]
+                val gray = Color.red(pixel) / 255f
                 inputArray[0][y][x][0] = gray
             }
         }
@@ -161,134 +167,45 @@ class MLStrokeValidator(private val context: Context) {
     // MLStrokeValidator.kt
     companion object {
         val CHARACTER_MAP = mapOf(
-            // Consonants
-            0 to "ก",  // ko kai
-            1 to "ข",  // kho khai
-            2 to "ฃ",  // kho khuat
-            3 to "ค",  // kho khwai
-            4 to "ฅ",  // kho khon
-            5 to "ฆ",  // kho rakhang
-            6 to "ง",  // ngo ngu
-            7 to "จ",  // cho chan
-            8 to "ฉ",  // cho ching
-            9 to "ช",  // cho chang
-            10 to "ซ", // so so
-            11 to "ฌ", // cho choe
-            12 to "ญ", // yo ying
-            13 to "ฎ", // do chada
-            14 to "ฏ", // to patak
-            15 to "ฐ", // tho than
-            16 to "ฑ", // tho nangmontho
-            17 to "ฒ", // tho phuthao
-            18 to "ณ", // no nen
-            19 to "ด", // do dek
-            20 to "ต", // to tao
-            21 to "ถ", // tho thung
-            22 to "ท", // tho thahan
-            23 to "ธ", // tho thong
-            24 to "น", // no nu
-            25 to "บ", // bo baimai
-            26 to "ป", // po pla
-            27 to "ผ", // pho phueng
-            28 to "ฝ", // fo fa
-            29 to "พ", // pho phan
-            30 to "ฟ", // fo fan
-            31 to "ภ", // pho samphao
-            32 to "ม", // mo ma
-            33 to "ย", // yo yak
-            34 to "ร", // ro ruea
-            35 to "ล", // lo ling
-            36 to "ว", // wo waen
-            37 to "ศ", // so sala
-            38 to "ษ", // so ruesi
-            39 to "ส", // so suea
-            40 to "ห", // ho hip
-            41 to "ฬ", // lo chula
-            42 to "อ", // o ang
-            43 to "ฮ", // ho nokhuk
-
-            // Vowels and tone marks
-            44 to "ะ", // sara a
-            45 to "า", // sara aa
-            46 to "ิ",  // sara i
-            47 to "ี",  // sara ii
-            48 to "ึ",  // sara ue
-            49 to "ื",  // sara uue
-            50 to "ุ",  // sara u
-            51 to "ู",  // sara uu
-            52 to "เ", // sara e
-            53 to "แ", // sara ae
-            54 to "โ"  // sara o
+            0 to "ก",   1 to "ข",   2 to "ฃ",   3 to "ค",   4 to "ฅ",   5 to "ฆ",   6 to "ง",
+            7 to "จ",   8 to "ฉ",   9 to "ช",   10 to "ซ",  11 to "ฌ",  12 to "ญ",  13 to "ฎ",
+            14 to "ฏ",  15 to "ฐ",  16 to "ฑ",  17 to "ฒ",  18 to "ณ",  19 to "ด",  20 to "ต",
+            21 to "ถ",  22 to "ท",  23 to "ธ",  24 to "น",  25 to "บ",  26 to "ป",  27 to "ผ",
+            28 to "ฝ",  29 to "พ",  30 to "ฟ",  31 to "ภ",  32 to "ม",  33 to "ย",  34 to "ร",
+            35 to "ฤ",  36 to "ล",  37 to "ว",  38 to "ศ",  39 to "ษ",  40 to "ส",  41 to "ห",
+            42 to "ฬ",  43 to "อ",  44 to "อะ", 45 to "อา", 46 to "อำ", 47 to "ฮ",  48 to "ฯ",
+            49 to "เ",  50 to "แ",  51 to "โ",  52 to "ใ",  53 to "ไ",  54 to "ๆ"
         )
 
-        // Helper function to get character from index
-        fun getCharacterFromIndex(index: Int): String {
-            return CHARACTER_MAP[index] ?: "?"
+        fun getCharacterFromIndex(index: Int): String = CHARACTER_MAP[index] ?: "?"
+
+        fun getPronunciation(index: Int): String = when(index) {
+            0 -> "ko kai"      1 -> "kho khai"    2 -> "kho khuat"    3 -> "kho khwai"
+            4 -> "kho khon"     5 -> "kho rakhang"  6 -> "ngo ngu"     7 -> "cho chan"
+            8 -> "cho ching"    9 -> "cho chang"    10 -> "so so"       11 -> "cho choe"
+            12 -> "yo ying"     13 -> "do chada"    14 -> "to patak"    15 -> "tho than"
+            16 -> "tho montho"  17 -> "tho phuthao" 18 -> "no nen"     19 -> "do dek"
+            20 -> "to tao"      21 -> "tho thung"  22 -> "tho thahan" 23 -> "tho thong"
+            24 -> "no nu"       25 -> "bo baimai"   26 -> "po pla"     27 -> "pho phueng"
+            28 -> "fo fa"       29 -> "pho phan"   30 -> "fo fan"      31 -> "pho samphao"
+            32 -> "mo ma"       33 -> "yo yak"      34 -> "ro ruea"     35 -> "ru"
+            36 -> "lo ling"     37 -> "wo waen"     38 -> "so sala"     39 -> "so ruesi"
+            40 -> "so suea"     41 -> "ho hip"      42 -> "lo chula"    43 -> "o ang"
+            44 -> "sara a"      45 -> "sara aa"     46 -> "sara am"     47 -> "ho nokhuk"
+            48 -> "paiyannoi"   49 -> "sara e"      50 -> "sara ae"    51 -> "sara o"
+            52 -> "sara ai mai muan" 53 -> "sara ai mai malai" 54 -> "mai yamok"
+            else -> ""
         }
 
-        fun getPronunciation(index: Int): String {
-            return when(index) {
-                // Consonants
-                0 -> "ko kai"
-                1 -> "kho khai"
-                2 -> "kho khuat"
-                3 -> "kho khwai"
-                4 -> "kho khon"
-                5 -> "kho rakhang"
-                6 -> "ngo ngu"
-                7 -> "cho chan"
-                8 -> "cho ching"
-                9 -> "cho chang"
-                10 -> "so so"
-                11 -> "cho choe"
-                12 -> "yo ying"
-                13 -> "do chada"
-                14 -> "to patak"
-                15 -> "tho than"
-                16 -> "tho nangmontho"
-                17 -> "tho phuthao"
-                18 -> "no nen"
-                19 -> "do dek"
-                20 -> "to tao"
-                21 -> "tho thung"
-                22 -> "tho thahan"
-                23 -> "tho thong"
-                24 -> "no nu"
-                25 -> "bo baimai"
-                26 -> "po pla"
-                27 -> "pho phueng"
-                28 -> "fo fa"
-                29 -> "pho phan"
-                30 -> "fo fan"
-                31 -> "pho samphao"
-                32 -> "mo ma"
-                33 -> "yo yak"
-                34 -> "ro ruea"
-                35 -> "lo ling"
-                36 -> "wo waen"
-                37 -> "so sala"
-                38 -> "so ruesi"
-                39 -> "so suea"
-                40 -> "ho hip"
-                41 -> "lo chula"
-                42 -> "o ang"
-                43 -> "ho nokhuk"
-
-                // Vowels and tone marks
-                44 -> "sara a"
-                45 -> "sara aa"
-                46 -> "sara i"
-                47 -> "sara ii"
-                48 -> "sara ue"
-                49 -> "sara uue"
-                50 -> "sara u"
-                51 -> "sara uu"
-                52 -> "sara e"
-                53 -> "sara ae"
-                54 -> "sara o"
-
-                else -> ""
+        fun getAllCharacters(): List<Pair<String, String>> {
+            return CHARACTER_MAP.map { (index, char) ->
+                char to getPronunciation(index)
             }
+        }
+
+        fun getRandomCharacter(): Pair<String, String> {
+            val randomIndex = CHARACTER_MAP.keys.random()
+            return CHARACTER_MAP[randomIndex]!! to getPronunciation(randomIndex)
         }
     }
 }
@@ -335,3 +252,42 @@ data class ValidationResult(
     val mlPrediction: CharacterPrediction?,
     val confidence: Float
 )
+
+private fun convertToGrayscale(bitmap: Bitmap): Bitmap {
+    val width = bitmap.width
+    val height = bitmap.height
+    val grayscaleBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(grayscaleBitmap)
+
+    val paint = Paint().apply {
+        colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
+            // Standard grayscale conversion matrix
+            setSaturation(0f)
+        })
+    }
+
+    // Draw the original bitmap with the grayscale color filter
+    canvas.drawBitmap(bitmap, 0f, 0f, paint)
+
+    // Invert colors if necessary to match training data
+    // (black text on white background or vice versa)
+    val invertColors = ColorMatrixColorFilter(ColorMatrix().apply {
+        val matrix = floatArrayOf(
+            -1f, 0f, 0f, 0f, 255f,  // Red
+            0f, -1f, 0f, 0f, 255f,  // Green
+            0f, 0f, -1f, 0f, 255f,  // Blue
+            0f, 0f, 0f, 1f, 0f      // Alpha
+        )
+        set(matrix)
+    })
+
+    val invertPaint = Paint().apply {
+        colorFilter = invertColors
+    }
+
+    val finalBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val finalCanvas = Canvas(finalBitmap)
+    finalCanvas.drawBitmap(grayscaleBitmap, 0f, 0f, invertPaint)
+
+    return finalBitmap
+}

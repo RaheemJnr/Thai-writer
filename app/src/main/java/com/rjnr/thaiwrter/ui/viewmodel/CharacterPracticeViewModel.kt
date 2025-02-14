@@ -301,6 +301,13 @@ class CharacterPracticeViewModel(
     private val repository: ThaiLanguageRepository,
     private val mlStrokeValidator: MLStrokeValidator
 ) : ViewModel() {
+    private val allCharacters = MLStrokeValidator.CHARACTER_MAP.map { (index, char) ->
+        ThaiCharacter(
+            id = index,
+            character = char,
+            pronunciation = MLStrokeValidator.getPronunciation(index)
+        )
+    }
     private val _currentCharacter = MutableStateFlow<ThaiCharacter?>(null)
     val currentCharacter = _currentCharacter.asStateFlow()
 
@@ -354,17 +361,12 @@ class CharacterPracticeViewModel(
     }
 
     private fun loadNextCharacter() {
-        viewModelScope.launch {
-            repository.getCharactersByDifficulty(1)
-                .collect { characters ->
-                    if (characters.isNotEmpty()) {
-                        _currentCharacter.value = characters.random()
-                        _prediction.value = null
-                    }
-                }
-        }
+        _currentCharacter.value = allCharacters.random()
+        clearCanvas()
     }
-
+    fun skipCharacter() {
+        loadNextCharacter()
+    }
     private suspend fun updateProgress() {
         currentCharacter.value?.let { char ->
             repository.updateUserProgress(
