@@ -264,6 +264,7 @@ import kotlin.math.sqrt
 @Composable
 fun DrawingCanvas(
     modifier: Modifier = Modifier,
+    shouldClear: Boolean = false,
     onDrawingComplete: (List<Point>, Int, Int) -> Unit
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -271,10 +272,13 @@ fun DrawingCanvas(
     val currentPoints = remember { mutableStateListOf<Point>() }
     val paths = remember { mutableStateListOf<Path>() }
 
-    LaunchedEffect(Unit) {
-        currentPath = Path()
-        currentPoints.clear()
-        paths.clear()
+    // React to shouldClear changes
+    LaunchedEffect(shouldClear) {
+        if (shouldClear) {
+            currentPath = Path()
+            currentPoints.clear()
+            paths.clear()
+        }
     }
 
     Canvas(
@@ -325,6 +329,10 @@ fun DrawingCanvas(
         )
     }
 }
+
+
+
+
 fun distanceBetween(offset: Offset, point: Point): Float {
     return sqrt((offset.x - point.x).pow(2) + (offset.y - point.y).pow(2))
 }

@@ -49,6 +49,8 @@ fun CharacterPracticeScreen(
 //    val confidence by viewModel.confidence.collectAsState()
     val prediction by viewModel.prediction.collectAsState()
     val currentCharacter by viewModel.currentCharacter.collectAsState()
+    val shouldClearCanvas by viewModel.shouldClearCanvas.collectAsState()
+
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
@@ -165,6 +167,7 @@ fun CharacterPracticeScreen(
                         .fillMaxSize()
                         .border(2.dp, Color.Gray, RoundedCornerShape(8.dp))
                         .clip(RoundedCornerShape(8.dp)),
+                    shouldClear = shouldClearCanvas,
                     onDrawingComplete = { points,width,height ->
                         viewModel.onDrawingComplete(points, width, height)
                     }

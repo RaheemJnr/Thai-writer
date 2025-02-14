@@ -307,6 +307,9 @@ class CharacterPracticeViewModel(
     private val _currentCharacter = MutableStateFlow<ThaiCharacter?>(null)
     val currentCharacter = _currentCharacter.asStateFlow()
 
+    private val _shouldClearCanvas = MutableStateFlow(false)
+    val shouldClearCanvas = _shouldClearCanvas.asStateFlow()
+
     private val _prediction = MutableStateFlow<CharacterPrediction?>(null)
     val prediction = _prediction.asStateFlow()
 
@@ -323,7 +326,12 @@ class CharacterPracticeViewModel(
 
     fun clearCanvas() {
         _prediction.value = null
-        // This will trigger LaunchedEffect in DrawingCanvas
+        _shouldClearCanvas.value = true
+        // Reset the flag after a brief delay
+        viewModelScope.launch {
+            delay(100)
+            _shouldClearCanvas.value = false
+        }
     }
 
     fun checkAnswer() {
