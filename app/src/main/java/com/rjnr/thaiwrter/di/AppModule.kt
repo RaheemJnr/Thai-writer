@@ -5,6 +5,7 @@ import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
 import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
 import com.rjnr.thaiwrter.ui.viewmodel.MainViewModel
 import com.rjnr.thaiwrter.utils.DatabaseInitializer
+import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -19,6 +20,7 @@ val appModule = module {
     single { ThaiLanguageRepository(get(), get()) }
     single { DatabaseInitializer(androidContext(), get()) }
 
+    single { MLStrokeValidator(androidContext()) }
 
     // ViewModels
     viewModel { MainViewModel(get()) }

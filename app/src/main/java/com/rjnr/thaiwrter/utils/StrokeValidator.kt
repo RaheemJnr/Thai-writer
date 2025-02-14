@@ -5,36 +5,36 @@ import com.rjnr.thaiwrter.data.models.Stroke
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-object StrokeValidator {
+//object StrokeValidator {
     const val RESAMPLE_POINTS = 64
     const val DTW_THRESHOLD = 0.25f // Adjust based on testing
-
-    fun validateStroke(
-        drawnPoints: List<Point>,
-        targetStroke: Stroke,
-        canvasWidth: Float,
-        canvasHeight: Float
-    ): Boolean {
-        // 1. Normalize and resample both strokes
-        val drawnNormalized = normalizePoints(drawnPoints, canvasWidth, canvasHeight)
-        val drawnResampled = resamplePoints(drawnNormalized, RESAMPLE_POINTS)
-
-        val targetResampled = resamplePoints(targetStroke.points, RESAMPLE_POINTS)
-
-        // 2. Calculate DTW distance
-        val distance = calculateDTW(drawnResampled, targetResampled)
-
-        // 3. Check direction similarity
-        val dirSimilarity = directionSimilarity(
-            drawnResampled.first(),
-            drawnResampled.last(),
-            targetResampled.first(),
-            targetResampled.last()
-        )
-
-        return distance < DTW_THRESHOLD && dirSimilarity > 0.7f
-    }
-
+//
+//    fun validateStroke(
+//        drawnPoints: List<Point>,
+//        targetStroke: Stroke,
+//        canvasWidth: Float,
+//        canvasHeight: Float
+//    ): Boolean {
+//        // 1. Normalize and resample both strokes
+//        val drawnNormalized = normalizePoints(drawnPoints, canvasWidth, canvasHeight)
+//        val drawnResampled = resamplePoints(drawnNormalized, RESAMPLE_POINTS)
+//
+//        val targetResampled = resamplePoints(targetStroke.points, RESAMPLE_POINTS)
+//
+//        // 2. Calculate DTW distance
+//        val distance = calculateDTW(drawnResampled, targetResampled)
+//
+//        // 3. Check direction similarity
+//        val dirSimilarity = directionSimilarity(
+//            drawnResampled.first(),
+//            drawnResampled.last(),
+//            targetResampled.first(),
+//            targetResampled.last()
+//        )
+//
+//        return distance < DTW_THRESHOLD && dirSimilarity > 0.7f
+//    }
+//
     private fun normalizePoints(
         points: List<Point>,
         width: Float,
@@ -44,7 +44,7 @@ object StrokeValidator {
             Point(it.x / width, it.y / height)
         }
     }
-
+//
     private fun resamplePoints(points: List<Point>, targetCount: Int): List<Point> {
         if (points.size < 2) return points
         val interval = pathLength(points) / (targetCount - 1)
@@ -71,7 +71,7 @@ object StrokeValidator {
         }
         return newPoints
     }
-
+//
     fun calculateDTW(a: List<Point>, b: List<Point>): Float {
         val matrix = Array(a.size) { FloatArray(b.size) { Float.MAX_VALUE } }
         matrix[0][0] = distanceBetween(a[0], b[0])
@@ -88,7 +88,7 @@ object StrokeValidator {
         }
         return matrix.last().last() / a.size
     }
-
+//
     fun directionSimilarity(
         startA: Point, endA: Point,
         startB: Point, endB: Point
@@ -110,4 +110,4 @@ object StrokeValidator {
      fun distanceBetween(a: Point, b: Point): Float {
         return sqrt((a.x - b.x).pow(2) + (a.y - b.y).pow(2))
     }
-}
+//}

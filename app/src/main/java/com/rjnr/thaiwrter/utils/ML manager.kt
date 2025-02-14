@@ -8,20 +8,19 @@ import android.graphics.Paint
 import android.util.Log
 import com.rjnr.thaiwrter.data.models.Point
 import com.rjnr.thaiwrter.data.models.Stroke
-import com.rjnr.thaiwrter.ui.drawing.distanceBetween
-import com.rjnr.thaiwrter.utils.StrokeValidator.DTW_THRESHOLD
-import com.rjnr.thaiwrter.utils.StrokeValidator.RESAMPLE_POINTS
-import com.rjnr.thaiwrter.utils.StrokeValidator.calculateDTW
-import com.rjnr.thaiwrter.utils.StrokeValidator.directionSimilarity
-import com.rjnr.thaiwrter.utils.StrokeValidator.distanceBetween
-import com.rjnr.thaiwrter.utils.StrokeValidator.normalizePoints
-import com.rjnr.thaiwrter.utils.StrokeValidator.pathLength
-import com.rjnr.thaiwrter.utils.StrokeValidator.resamplePoints
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
+data class CharacterPrediction(
+    val characterIndex: Int,
+    val confidence: Float,
+    val alternativePredictions: List<Pair<Int, Float>>
+)
 // MLStrokeValidator.kt
 class MLStrokeValidator(private val context: Context) {
     private var interpreter: Interpreter? = null
@@ -138,19 +137,13 @@ class MLStrokeValidator(private val context: Context) {
     }
 }
 
-data class CharacterPrediction(
-    val characterIndex: Int,
-    val confidence: Float,
-    val alternativePredictions: List<Pair<Int, Float>>
-)
+
 
 // Enhanced StrokeValidator
-object StrokeValidator {
-    private var mlValidator: MLStrokeValidator? = null
+object StrokeValidator : KoinComponent {
+    private val mlValidator: MLStrokeValidator? by inject()
 
-    fun initialize(context: Context) {
-        mlValidator = MLStrokeValidator(context)
-    }
+
 
     fun validateStroke(
         drawnPoints: List<Point>,
