@@ -140,53 +140,64 @@ class MLStrokeValidator(private val context: Context) {
 
 
 // Enhanced StrokeValidator
+//object StrokeValidator : KoinComponent {
+//    private val mlValidator: MLStrokeValidator? by inject()
+//
+//    fun validateStroke(
+//        drawnPoints: List<Point>,
+//        targetStroke: Stroke,
+//        canvasWidth: Float,
+//        canvasHeight: Float
+//    ): ValidationResult {
+//        // Original DTW validation
+//        val dtwResult = validateWithDTW(drawnPoints, targetStroke, canvasWidth, canvasHeight)
+//
+//        // ML prediction (if available)
+//        val mlPrediction = mlValidator?.predictCharacter(drawnPoints, canvasWidth, canvasHeight)
+//
+//        // Combine results
+//        return ValidationResult(
+//            isValid = dtwResult,
+//            mlPrediction = mlPrediction,
+//            confidence = mlPrediction?.confidence ?: 0f
+//        )
+//    }
+//
+//    private fun validateWithDTW(
+//        drawnPoints: List<Point>,
+//        targetStroke: Stroke,
+//        canvasWidth: Float,
+//        canvasHeight: Float
+//    ): Boolean {
+//        // 1. Normalize and resample both strokes
+//        val drawnNormalized = normalizePoints(drawnPoints, canvasWidth, canvasHeight)
+//        val drawnResampled = resamplePoints(drawnNormalized, RESAMPLE_POINTS)
+//
+//        val targetResampled = resamplePoints(targetStroke.points, RESAMPLE_POINTS)
+//
+//        // 2. Calculate DTW distance
+//        val distance = calculateDTW(drawnResampled, targetResampled)
+//
+//        // 3. Check direction similarity
+//        val dirSimilarity = directionSimilarity(
+//            drawnResampled.first(),
+//            drawnResampled.last(),
+//            targetResampled.first(),
+//            targetResampled.last()
+//        )
+//
+//        return distance < DTW_THRESHOLD && dirSimilarity > 0.7f
+//    }
+//}
 object StrokeValidator : KoinComponent {
-    private val mlValidator: MLStrokeValidator? by inject()
+    private val mlValidator: MLStrokeValidator by inject()
 
-    fun validateStroke(
-        drawnPoints: List<Point>,
-        targetStroke: Stroke,
-        canvasWidth: Float,
-        canvasHeight: Float
-    ): ValidationResult {
-        // Original DTW validation
-        val dtwResult = validateWithDTW(drawnPoints, targetStroke, canvasWidth, canvasHeight)
-
-        // ML prediction (if available)
-        val mlPrediction = mlValidator?.predictCharacter(drawnPoints, canvasWidth, canvasHeight)
-
-        // Combine results
-        return ValidationResult(
-            isValid = dtwResult,
-            mlPrediction = mlPrediction,
-            confidence = mlPrediction?.confidence ?: 0f
-        )
-    }
-
-    private fun validateWithDTW(
-        drawnPoints: List<Point>,
-        targetStroke: Stroke,
-        canvasWidth: Float,
-        canvasHeight: Float
-    ): Boolean {
-        // 1. Normalize and resample both strokes
-        val drawnNormalized = normalizePoints(drawnPoints, canvasWidth, canvasHeight)
-        val drawnResampled = resamplePoints(drawnNormalized, RESAMPLE_POINTS)
-
-        val targetResampled = resamplePoints(targetStroke.points, RESAMPLE_POINTS)
-
-        // 2. Calculate DTW distance
-        val distance = calculateDTW(drawnResampled, targetResampled)
-
-        // 3. Check direction similarity
-        val dirSimilarity = directionSimilarity(
-            drawnResampled.first(),
-            drawnResampled.last(),
-            targetResampled.first(),
-            targetResampled.last()
-        )
-
-        return distance < DTW_THRESHOLD && dirSimilarity > 0.7f
+    fun recognizeCharacter(
+        points: List<Point>,
+        width: Float,
+        height: Float
+    ): CharacterPrediction {
+        return mlValidator.predictCharacter(points, width, height)
     }
 }
 private fun resamplePoints(points: List<Point>, targetCount: Int): List<Point> {

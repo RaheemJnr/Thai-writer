@@ -41,12 +41,15 @@ fun CharacterPracticeScreen(
     navController: NavController
 ) {
     //Log.d("CharacterPracticeScreen", "Current character: ${currentCharacter?.character}")
+//    val currentCharacter by viewModel.currentCharacter.collectAsState()
+//    val paths by viewModel.paths.collectAsState()
+//    val strokeFeedback by viewModel.strokeFeedback.collectAsState()
+//    val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
+//    val mlPrediction by viewModel.mlPrediction.collectAsState()
+//    val confidence by viewModel.confidence.collectAsState()
+    val prediction by viewModel.prediction.collectAsState()
     val currentCharacter by viewModel.currentCharacter.collectAsState()
-    val paths by viewModel.paths.collectAsState()
-    val strokeFeedback by viewModel.strokeFeedback.collectAsState()
-    val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
-    val mlPrediction by viewModel.mlPrediction.collectAsState()
-    val confidence by viewModel.confidence.collectAsState()
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
         Column(
@@ -57,6 +60,75 @@ fun CharacterPracticeScreen(
                 .background(MaterialTheme.colorScheme.background)
 
         ) {
+//            // Character display
+//            Text(
+//                text = currentCharacter?.character ?: "",
+//                style = MaterialTheme.typography.displayLarge,
+//                modifier = Modifier.align(Alignment.CenterHorizontally)
+//            )
+//
+//            // Pronunciation guide
+//            Text(
+//                text = currentCharacter?.pronunciation ?: "",
+//                style = MaterialTheme.typography.bodyLarge,
+//                modifier = Modifier.align(Alignment.CenterHorizontally)
+//            )
+//            // Add this after the pronunciation guide
+//            Text(
+//                text = "Start at green circle → Follow arrow → End at red circle",
+//                style = MaterialTheme.typography.bodyMedium,
+//                color = MaterialTheme.colorScheme.primary,
+//                modifier = Modifier
+//                    .align(Alignment.CenterHorizontally)
+//                    .padding(bottom = 8.dp)
+//            )
+//
+//            Text(
+//                text = "Current stroke: ${(currentStrokeIndex + 1)}",
+//                style = MaterialTheme.typography.bodyMedium,
+//                color = MaterialTheme.colorScheme.secondary,
+//                modifier = Modifier.align(Alignment.CenterHorizontally)
+//            )
+//            // Add ML Prediction display when available
+//            mlPrediction?.let { prediction ->
+//                Card(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .padding(vertical = 8.dp),
+//                    colors = CardDefaults.cardColors(
+//                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+//                    )
+//                ) {
+//                    Column(
+//                        modifier = Modifier
+//                            .padding(16.dp)
+//                    ) {
+//                        Text(
+//                            text = "ML Prediction Results",
+//                            style = MaterialTheme.typography.titleMedium,
+//                            color = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
+//
+//                        // Show confidence score
+//                        confidence?.let { score ->
+//                            Text(
+//                                text = "Confidence: ${(score * 100).toInt()}%",
+//                                style = MaterialTheme.typography.bodyMedium,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        }
+//
+//                        // Show alternative predictions
+//                        prediction.alternativePredictions.take(3).forEach { (index, conf) ->
+//                            Text(
+//                                text = "Alternative ${index + 1}: ${(conf * 100).toInt()}%",
+//                                style = MaterialTheme.typography.bodySmall,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        }
+//                    }
+//                }
+//            }
             // Character display
             Text(
                 text = currentCharacter?.character ?: "",
@@ -70,62 +142,6 @@ fun CharacterPracticeScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
-            // Add this after the pronunciation guide
-            Text(
-                text = "Start at green circle → Follow arrow → End at red circle",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = "Current stroke: ${(currentStrokeIndex + 1)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-            // Add ML Prediction display when available
-            mlPrediction?.let { prediction ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = "ML Prediction Results",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        // Show confidence score
-                        confidence?.let { score ->
-                            Text(
-                                text = "Confidence: ${(score * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        // Show alternative predictions
-                        prediction.alternativePredictions.take(3).forEach { (index, conf) ->
-                            Text(
-                                text = "Alternative ${index + 1}: ${(conf * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
 
             // Drawing canvas
             Box(
@@ -134,19 +150,55 @@ fun CharacterPracticeScreen(
                     .aspectRatio(1f)
                     .padding(vertical = 16.dp)
             ) {
+//                DrawingCanvas(
+//                    modifier = Modifier
+//                        .fillMaxSize()
+//                        .border(2.dp, Color.Gray, RoundedCornerShape(8.dp))
+//                        .clip(RoundedCornerShape(8.dp)),
+//                    currentCharacter = currentCharacter,
+//                    currentStrokeIndex = currentStrokeIndex,
+//                    paths = paths,
+//                    onStrokeFinished = viewModel::validateStroke
+//                )
                 DrawingCanvas(
                     modifier = Modifier
                         .fillMaxSize()
                         .border(2.dp, Color.Gray, RoundedCornerShape(8.dp))
                         .clip(RoundedCornerShape(8.dp)),
-                    currentCharacter = currentCharacter,
-                    currentStrokeIndex = currentStrokeIndex,
-                    paths = paths,
-                    onStrokeFinished = viewModel::validateStroke
+                    onDrawingComplete = { points,width,height ->
+                        viewModel.onDrawingComplete(points, width, height)
+                    }
                 )
             }
 
-            // Controls
+            // Prediction results
+            prediction?.let { pred ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Prediction: ${pred.characterIndex}",
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                        Text(
+                            text = "Confidence: ${(pred.confidence * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+
+                        // Show top alternative predictions
+                        pred.alternativePredictions.take(3).forEach { (index, confidence) ->
+                            Text(
+                                text = "Alternative: ${index} (${(confidence * 100).toInt()}%)",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -159,34 +211,52 @@ fun CharacterPracticeScreen(
                 Button(onClick = viewModel::checkAnswer) {
                     Text("Check")
                 }
-                Button(onClick = viewModel::skipCharacter) {
-                    Text("Skip")
+                Button(onClick = viewModel::nextCharacter) {
+                    Text("Next")
                 }
             }
 
-            // Feedback text
-            AnimatedVisibility(
-                visible = strokeFeedback != null,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Text(
-                    text = when (strokeFeedback) {
-                        StrokeFeedback.Correct -> "Correct!"
-                        StrokeFeedback.Incorrect -> "Try again"
-                        null -> ""
-                    },
-                    color = when (strokeFeedback) {
-                        StrokeFeedback.Correct -> Color.Green
-                        StrokeFeedback.Incorrect -> Color.Red
-                        null -> Color.Black
-                    },
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 8.dp)
-                )
-            }
+            // Controls
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(top = 16.dp),
+//                horizontalArrangement = Arrangement.SpaceEvenly
+//            ) {
+//                Button(onClick = viewModel::clearCanvas) {
+//                    Text("Clear")
+//                }
+//                Button(onClick = viewModel::checkAnswer) {
+//                    Text("Check")
+//                }
+//                Button(onClick = viewModel::skipCharacter) {
+//                    Text("Skip")
+//                }
+//            }
+//
+//            // Feedback text
+//            AnimatedVisibility(
+//                visible = strokeFeedback != null,
+//                enter = fadeIn(),
+//                exit = fadeOut()
+//            ) {
+//                Text(
+//                    text = when (strokeFeedback) {
+//                        StrokeFeedback.Correct -> "Correct!"
+//                        StrokeFeedback.Incorrect -> "Try again"
+//                        null -> ""
+//                    },
+//                    color = when (strokeFeedback) {
+//                        StrokeFeedback.Correct -> Color.Green
+//                        StrokeFeedback.Incorrect -> Color.Red
+//                        null -> Color.Black
+//                    },
+//                    style = MaterialTheme.typography.headlineMedium,
+//                    modifier = Modifier
+//                        .align(Alignment.CenterHorizontally)
+//                        .padding(vertical = 8.dp)
+//                )
+//            }
         }
     }
 }
