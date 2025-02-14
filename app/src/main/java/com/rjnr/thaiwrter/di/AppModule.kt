@@ -24,5 +24,5 @@ val appModule = module {
 
     // ViewModels
     viewModel { MainViewModel(get()) }
-    viewModel { CharacterPracticeViewModel(get()) }
+    viewModel { CharacterPracticeViewModel(get(), get()) }
 }

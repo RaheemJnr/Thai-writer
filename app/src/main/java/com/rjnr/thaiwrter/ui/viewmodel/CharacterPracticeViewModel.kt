@@ -1,18 +1,14 @@
 package com.rjnr.thaiwrter.ui.viewmodel
 
 import android.util.Log
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rjnr.thaiwrter.data.models.Point
 import com.rjnr.thaiwrter.data.models.ThaiCharacter
 import com.rjnr.thaiwrter.data.models.UserProgress
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
-import com.rjnr.thaiwrter.ui.drawing.PathWithColor
 import com.rjnr.thaiwrter.utils.CharacterPrediction
-import com.rjnr.thaiwrter.utils.StrokeValidator
-import com.rjnr.thaiwrter.utils.ValidationResult
+import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -302,7 +298,8 @@ import java.util.concurrent.TimeUnit
 //    }
 //}
 class CharacterPracticeViewModel(
-    private val repository: ThaiLanguageRepository
+    private val repository: ThaiLanguageRepository,
+    private val mlStrokeValidator: MLStrokeValidator
 ) : ViewModel() {
     private val _currentCharacter = MutableStateFlow<ThaiCharacter?>(null)
     val currentCharacter = _currentCharacter.asStateFlow()
@@ -319,7 +316,13 @@ class CharacterPracticeViewModel(
 
     fun onDrawingComplete(points: List<Point>, width: Int, height: Int) {
         viewModelScope.launch {
-            val prediction = StrokeValidator.recognizeCharacter(points, width.toFloat(), height.toFloat())
+            val prediction =
+                mlStrokeValidator.predictCharacter(points, width.toFloat(), height.toFloat())
+            prediction?.let {
+                Log.d("Prediction", "Character: ${it.character}")
+                Log.d("Prediction", "Confidence: ${it.confidence * 100}%")
+                Log.d("Prediction", "Alternatives: ${it.alternativeCharacters}")
+            }
             _prediction.value = prediction
         }
     }
