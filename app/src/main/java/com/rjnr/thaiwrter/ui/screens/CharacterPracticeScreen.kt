@@ -152,16 +152,6 @@ fun CharacterPracticeScreen(
                     .aspectRatio(1f)
                     .padding(vertical = 16.dp)
             ) {
-//                DrawingCanvas(
-//                    modifier = Modifier
-//                        .fillMaxSize()
-//                        .border(2.dp, Color.Gray, RoundedCornerShape(8.dp))
-//                        .clip(RoundedCornerShape(8.dp)),
-//                    currentCharacter = currentCharacter,
-//                    currentStrokeIndex = currentStrokeIndex,
-//                    paths = paths,
-//                    onStrokeFinished = viewModel::validateStroke
-//                )
                 DrawingCanvas(
                     modifier = Modifier
                         .fillMaxSize()
@@ -191,12 +181,41 @@ fun CharacterPracticeScreen(
                             style = MaterialTheme.typography.bodyLarge
                         )
 
+                        // Pronunciation
+                        Text(
+                            text = pred.pronunciation,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
                         // Show top alternative predictions
-                        pred.alternativePredictions.take(3).forEach { (index, confidence) ->
+//                        pred.alternativePredictions.take(3).forEach { (index, confidence) ->
+//                            Text(
+//                                text = "Alternative: ${index} (${(confidence * 100).toInt()}%)",
+//                                style = MaterialTheme.typography.bodyMedium
+//                            )
+//                        }
+                        if (pred.alternativeCharacters.isNotEmpty()) {
                             Text(
-                                text = "Alternative: ${index} (${(confidence * 100).toInt()}%)",
-                                style = MaterialTheme.typography.bodyMedium
+                                text = "Alternative predictions:",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = 8.dp)
                             )
+                            pred.alternativeCharacters.take(3).forEach { (char, conf) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(char, style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        "${(conf * 100).toInt()}%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
