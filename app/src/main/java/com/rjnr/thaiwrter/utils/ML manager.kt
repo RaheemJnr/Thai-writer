@@ -143,8 +143,6 @@ class MLStrokeValidator(private val context: Context) {
 object StrokeValidator : KoinComponent {
     private val mlValidator: MLStrokeValidator? by inject()
 
-
-
     fun validateStroke(
         drawnPoints: List<Point>,
         targetStroke: Stroke,

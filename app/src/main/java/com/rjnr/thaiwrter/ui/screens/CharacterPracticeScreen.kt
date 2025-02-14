@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,11 +40,13 @@ fun CharacterPracticeScreen(
     viewModel: CharacterPracticeViewModel = koinViewModel(),
     navController: NavController
 ) {
+    //Log.d("CharacterPracticeScreen", "Current character: ${currentCharacter?.character}")
     val currentCharacter by viewModel.currentCharacter.collectAsState()
     val paths by viewModel.paths.collectAsState()
     val strokeFeedback by viewModel.strokeFeedback.collectAsState()
     val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
-    Log.d("CharacterPracticeScreen", "Current character: ${currentCharacter?.character}")
+    val mlPrediction by viewModel.mlPrediction.collectAsState()
+    val confidence by viewModel.confidence.collectAsState()
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
         Column(
@@ -82,6 +86,46 @@ fun CharacterPracticeScreen(
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
+            // Add ML Prediction display when available
+            mlPrediction?.let { prediction ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "ML Prediction Results",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        // Show confidence score
+                        confidence?.let { score ->
+                            Text(
+                                text = "Confidence: ${(score * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Show alternative predictions
+                        prediction.alternativePredictions.take(3).forEach { (index, conf) ->
+                            Text(
+                                text = "Alternative ${index + 1}: ${(conf * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             // Drawing canvas
             Box(
