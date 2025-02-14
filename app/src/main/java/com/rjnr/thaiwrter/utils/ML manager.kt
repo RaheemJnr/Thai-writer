@@ -9,16 +9,11 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.util.Log
 import com.rjnr.thaiwrter.data.models.Point
-import com.rjnr.thaiwrter.data.models.Stroke
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 data class CharacterPrediction(
     val characterIndex: Int,
@@ -70,27 +65,81 @@ class MLStrokeValidator(private val context: Context) {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
+    //    fun predictCharacter(points: List<Point>, width: Float, height: Float): CharacterPrediction? {
+//        return try {
+//            lock.withLock {
+//                val bitmap = convertStrokeToBitmap(points, width, height)
+//                val inputArray = preprocessImage(bitmap)
+//
+//                // Prepare output array
+//                val outputArray = Array(1) { FloatArray(55) } // 55 classes
+//
+//                // Run inference
+//                interpreter?.run(inputArray, outputArray)
+//
+//                // Process results
+//                processResults(outputArray[0])
+//            }
+//        } catch (e: Exception) {
+//            Log.e("MLStrokeValidator", "Error during prediction", e)
+//            null
+//        }
+//    }
     fun predictCharacter(points: List<Point>, width: Float, height: Float): CharacterPrediction? {
         return try {
-            lock.withLock {
-                val bitmap = convertStrokeToBitmap(points, width, height)
-                val inputArray = preprocessImage(bitmap)
+            val bitmap = convertStrokeToBitmap(points, width, height)
 
-                // Prepare output array
-                val outputArray = Array(1) { FloatArray(55) } // 55 classes
+            // Debug output for stroke conversion
+            Log.d("MLStrokeValidator", "Original bitmap size: ${bitmap.width}x${bitmap.height}")
 
-                // Run inference
-                interpreter?.run(inputArray, outputArray)
+            val inputArray = preprocessImage(bitmap)
+            val outputArray = Array(1) { FloatArray(55) }
 
-                // Process results
-                processResults(outputArray[0])
+            interpreter?.run(inputArray, outputArray)
+
+            // Debug output for prediction
+            val predictions = outputArray[0].mapIndexed { index, value ->
+                index to value
+            }.sortedByDescending { it.second }
+
+            Log.d("MLStrokeValidator", "Top 3 predictions:")
+            predictions.take(3).forEach { (index, conf) ->
+                Log.d("MLStrokeValidator", "${getCharacterFromIndex(index)}: ${conf * 100}%")
             }
+
+            processResults(outputArray[0])
         } catch (e: Exception) {
             Log.e("MLStrokeValidator", "Error during prediction", e)
             null
         }
     }
 
+    private fun convertToGrayscale(bitmap: Bitmap): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        val grayscaleBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(grayscaleBitmap)
+
+        // First convert to grayscale
+        val paint = Paint().apply {
+            colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
+                setSaturation(0f)
+            })
+        }
+
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+
+        // Debug output for grayscale values
+        val pixels = IntArray(width * height)
+        grayscaleBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        val grayValues = pixels.map { Color.red(it) }
+        Log.d(
+            "MLStrokeValidator",
+            "Grayscale range: ${grayValues.minOrNull()} to ${grayValues.maxOrNull()}"
+        )
+
+        return grayscaleBitmap
+    }
     private fun convertStrokeToBitmap(points: List<Point>, width: Float, height: Float): Bitmap {
         val bitmap = Bitmap.createBitmap(imageSize, imageSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -127,10 +176,44 @@ class MLStrokeValidator(private val context: Context) {
         return bitmap
     }
 
+    //    private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
+//        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
+//        val grayscaleBitmap = convertToGrayscale(scaledBitmap)
+//
+//        val inputArray = Array(1) {
+//            Array(imageSize) {
+//                Array(imageSize) {
+//                    FloatArray(1)
+//                }
+//            }
+//        }
+//
+//        // Match the training preprocessing exactly
+//        for (y in 0 until imageSize) {
+//            for (x in 0 until imageSize) {
+//                val pixel = grayscaleBitmap.getPixel(x, y)
+//                // Convert to grayscale and normalize to [0,1]
+//                val gray = Color.red(pixel) / 255f
+//                inputArray[0][y][x][0] = gray
+//            }
+//        }
+//
+//        return inputArray
+//    }
     private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
+        // Step 1: Scale to correct size
         val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
+
+        // Debug output for scaled bitmap
+        Log.d(
+            "MLStrokeValidator",
+            "Scaled bitmap size: ${scaledBitmap.width}x${scaledBitmap.height}"
+        )
+
+        // Step 2: Convert to grayscale (black strokes on white background)
         val grayscaleBitmap = convertToGrayscale(scaledBitmap)
 
+        // Step 3: Create input array with same shape as training
         val inputArray = Array(1) {
             Array(imageSize) {
                 Array(imageSize) {
@@ -139,18 +222,28 @@ class MLStrokeValidator(private val context: Context) {
             }
         }
 
-        // Match the training preprocessing exactly
+        // Step 4: Fill array with normalized pixel values
+        var minVal = 1f
+        var maxVal = 0f
+
         for (y in 0 until imageSize) {
             for (x in 0 until imageSize) {
                 val pixel = grayscaleBitmap.getPixel(x, y)
-                // Convert to grayscale and normalize to [0,1]
-                val gray = Color.red(pixel) / 255f
-                inputArray[0][y][x][0] = gray
+                val value = (Color.red(pixel) / 255f)  // Use red channel for grayscale
+                inputArray[0][y][x][0] = value
+
+                // Track value range for debugging
+                minVal = minOf(minVal, value)
+                maxVal = maxOf(maxVal, value)
             }
         }
 
+        // Debug output
+        Log.d("MLStrokeValidator", "Input array value range: $minVal to $maxVal")
+
         return inputArray
     }
+
 
     private fun processResults(outputs: FloatArray): CharacterPrediction {
         val predictions = outputs.mapIndexed { index, confidence ->
@@ -253,41 +346,41 @@ data class ValidationResult(
     val confidence: Float
 )
 
-private fun convertToGrayscale(bitmap: Bitmap): Bitmap {
-    val width = bitmap.width
-    val height = bitmap.height
-    val grayscaleBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(grayscaleBitmap)
-
-    val paint = Paint().apply {
-        colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
-            // Standard grayscale conversion matrix
-            setSaturation(0f)
-        })
-    }
-
-    // Draw the original bitmap with the grayscale color filter
-    canvas.drawBitmap(bitmap, 0f, 0f, paint)
-
-    // Invert colors if necessary to match training data
-    // (black text on white background or vice versa)
-    val invertColors = ColorMatrixColorFilter(ColorMatrix().apply {
-        val matrix = floatArrayOf(
-            -1f, 0f, 0f, 0f, 255f,  // Red
-            0f, -1f, 0f, 0f, 255f,  // Green
-            0f, 0f, -1f, 0f, 255f,  // Blue
-            0f, 0f, 0f, 1f, 0f      // Alpha
-        )
-        set(matrix)
-    })
-
-    val invertPaint = Paint().apply {
-        colorFilter = invertColors
-    }
-
-    val finalBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val finalCanvas = Canvas(finalBitmap)
-    finalCanvas.drawBitmap(grayscaleBitmap, 0f, 0f, invertPaint)
-
-    return finalBitmap
-}
+//private fun convertToGrayscale(bitmap: Bitmap): Bitmap {
+//    val width = bitmap.width
+//    val height = bitmap.height
+//    val grayscaleBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+//    val canvas = Canvas(grayscaleBitmap)
+//
+//    val paint = Paint().apply {
+//        colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
+//            // Standard grayscale conversion matrix
+//            setSaturation(0f)
+//        })
+//    }
+//
+//    // Draw the original bitmap with the grayscale color filter
+//    canvas.drawBitmap(bitmap, 0f, 0f, paint)
+//
+//    // Invert colors if necessary to match training data
+//    // (black text on white background or vice versa)
+//    val invertColors = ColorMatrixColorFilter(ColorMatrix().apply {
+//        val matrix = floatArrayOf(
+//            -1f, 0f, 0f, 0f, 255f,  // Red
+//            0f, -1f, 0f, 0f, 255f,  // Green
+//            0f, 0f, -1f, 0f, 255f,  // Blue
+//            0f, 0f, 0f, 1f, 0f      // Alpha
+//        )
+//        set(matrix)
+//    })
+//
+//    val invertPaint = Paint().apply {
+//        colorFilter = invertColors
+//    }
+//
+//    val finalBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+//    val finalCanvas = Canvas(finalBitmap)
+//    finalCanvas.drawBitmap(grayscaleBitmap, 0f, 0f, invertPaint)
+//
+//    return finalBitmap
+//}
