@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.Rect
 import android.util.Log
 import com.rjnr.thaiwrter.data.models.Point
 import org.tensorflow.lite.Interpreter
@@ -120,7 +121,6 @@ class MLStrokeValidator(private val context: Context) {
         val grayscaleBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(grayscaleBitmap)
 
-        // First convert to grayscale
         val paint = Paint().apply {
             colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
                 setSaturation(0f)
@@ -128,19 +128,8 @@ class MLStrokeValidator(private val context: Context) {
         }
 
         canvas.drawBitmap(bitmap, 0f, 0f, paint)
-
-        // Debug output for grayscale values
-        val pixels = IntArray(width * height)
-        grayscaleBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        val grayValues = pixels.map { Color.red(it) }
-        Log.d(
-            "MLStrokeValidator",
-            "Grayscale range: ${grayValues.minOrNull()} to ${grayValues.maxOrNull()}"
-        )
-
         return grayscaleBitmap
-    }
-    private fun convertStrokeToBitmap(points: List<Point>, width: Float, height: Float): Bitmap {
+    }    private fun convertStrokeToBitmap(points: List<Point>, width: Float, height: Float): Bitmap {
         val bitmap = Bitmap.createBitmap(imageSize, imageSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -201,19 +190,25 @@ class MLStrokeValidator(private val context: Context) {
 //        return inputArray
 //    }
     private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
-        // Step 1: Scale to correct size
         val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
 
-        // Debug output for scaled bitmap
-        Log.d(
-            "MLStrokeValidator",
-            "Scaled bitmap size: ${scaledBitmap.width}x${scaledBitmap.height}"
-        )
+        // Create a padded bitmap to ensure the character is centered
+        val paddedBitmap = Bitmap.createBitmap(imageSize, imageSize, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(paddedBitmap)
+        canvas.drawColor(Color.WHITE)
 
-        // Step 2: Convert to grayscale (black strokes on white background)
-        val grayscaleBitmap = convertToGrayscale(scaledBitmap)
+        // Calculate padding to center the character
+        val bounds = calculateBounds(scaledBitmap)
+        val centerX = (imageSize - (bounds.right - bounds.left)) / 2f
+        val centerY = (imageSize - (bounds.bottom - bounds.top)) / 2f
 
-        // Step 3: Create input array with same shape as training
+        // Draw centered character
+        canvas.drawBitmap(scaledBitmap, centerX, centerY, Paint())
+
+        // Convert to grayscale
+        val grayscaleBitmap = convertToGrayscale(paddedBitmap)
+
+        // Create input array
         val inputArray = Array(1) {
             Array(imageSize) {
                 Array(imageSize) {
@@ -222,28 +217,41 @@ class MLStrokeValidator(private val context: Context) {
             }
         }
 
-        // Step 4: Fill array with normalized pixel values
-        var minVal = 1f
-        var maxVal = 0f
-
+        // Fill array with normalized values
         for (y in 0 until imageSize) {
             for (x in 0 until imageSize) {
                 val pixel = grayscaleBitmap.getPixel(x, y)
-                val value = (Color.red(pixel) / 255f)  // Use red channel for grayscale
+                val value = 1f - (Color.red(pixel) / 255f)  // Invert values: black=1, white=0
                 inputArray[0][y][x][0] = value
-
-                // Track value range for debugging
-                minVal = minOf(minVal, value)
-                maxVal = maxOf(maxVal, value)
             }
         }
-
-        // Debug output
-        Log.d("MLStrokeValidator", "Input array value range: $minVal to $maxVal")
 
         return inputArray
     }
 
+    private fun calculateBounds(bitmap: Bitmap): Rect {
+        val bounds = Rect()
+        var minX = bitmap.width
+        var minY = bitmap.height
+        var maxX = 0
+        var maxY = 0
+
+        // Find the bounds of the character (non-white pixels)
+        for (y in 0 until bitmap.height) {
+            for (x in 0 until bitmap.width) {
+                val pixel = bitmap.getPixel(x, y)
+                if (pixel != Color.WHITE) {
+                    minX = minOf(minX, x)
+                    minY = minOf(minY, y)
+                    maxX = maxOf(maxX, x)
+                    maxY = maxOf(maxY, y)
+                }
+            }
+        }
+
+        bounds.set(minX, minY, maxX, maxY)
+        return bounds
+    }
 
     private fun processResults(outputs: FloatArray): CharacterPrediction {
         val predictions = outputs.mapIndexed { index, confidence ->
