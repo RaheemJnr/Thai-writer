@@ -311,43 +311,6 @@ class MLStrokeValidator(private val context: Context) {
     }
 }
 
-private fun resamplePoints(points: List<Point>, targetCount: Int): List<Point> {
-    if (points.size < 2) return points
-    val interval = pathLength(points) / (targetCount - 1)
-    var currentDistance = 0f
-    val newPoints = mutableListOf(points.first())
-    var prevPoint = points.first()
-
-    for (i in 1 until points.size) {
-        val dist = distanceBetween(prevPoint, points[i])
-        if (currentDistance + dist >= interval) {
-            val ratio = (interval - currentDistance) / dist
-            val newX = prevPoint.x + ratio * (points[i].x - prevPoint.x)
-            val newY = prevPoint.y + ratio * (points[i].y - prevPoint.y)
-            newPoints.add(Point(newX, newY))
-            currentDistance = 0f
-            prevPoint = Point(newX, newY)
-        } else {
-            currentDistance += dist
-        }
-    }
-
-    while (newPoints.size < targetCount) {
-        newPoints.add(points.last())
-    }
-    return newPoints
-}
-
-private fun normalizePoints(
-    points: List<Point>,
-    width: Float,
-    height: Float
-): List<Point> {
-    return points.map {
-        Point(it.x / width, it.y / height)
-    }
-}
-
 data class ValidationResult(
     val isValid: Boolean,
     val mlPrediction: CharacterPrediction?,
