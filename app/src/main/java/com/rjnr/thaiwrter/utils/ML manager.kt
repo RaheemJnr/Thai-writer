@@ -13,6 +13,7 @@ import com.rjnr.thaiwrter.data.models.Point
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.concurrent.locks.ReentrantLock
 
@@ -189,45 +190,70 @@ class MLStrokeValidator(private val context: Context) {
 //
 //        return inputArray
 //    }
-    private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
-        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
+//    private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
+//        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
+//
+//        // Create a padded bitmap to ensure the character is centered
+//        val paddedBitmap = Bitmap.createBitmap(imageSize, imageSize, Bitmap.Config.ARGB_8888)
+//        val canvas = Canvas(paddedBitmap)
+//        canvas.drawColor(Color.WHITE)
+//
+//        // Calculate padding to center the character
+//        val bounds = calculateBounds(scaledBitmap)
+//        val centerX = (imageSize - (bounds.right - bounds.left)) / 2f
+//        val centerY = (imageSize - (bounds.bottom - bounds.top)) / 2f
+//
+//        // Draw centered character
+//        canvas.drawBitmap(scaledBitmap, centerX, centerY, Paint())
+//
+//        // Convert to grayscale
+//        val grayscaleBitmap = convertToGrayscale(paddedBitmap)
+//
+//        // Create input array
+//        val inputArray = Array(1) {
+//            Array(imageSize) {
+//                Array(imageSize) {
+//                    FloatArray(1)
+//                }
+//            }
+//        }
+//
+//        // Fill array with normalized values
+//        for (y in 0 until imageSize) {
+//            for (x in 0 until imageSize) {
+//                val pixel = grayscaleBitmap.getPixel(x, y)
+//                val value = 1f - (Color.red(pixel) / 255f)  // Invert values: black=1, white=0
+//                inputArray[0][y][x][0] = value
+//            }
+//        }
+//
+//        return inputArray
+//    }
+    // 2. Fix preprocessing to match Python code
+    private fun preprocessImage(bitmap: Bitmap): ByteBuffer {
+        // Resize to 256x256
+        val resizedBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
 
-        // Create a padded bitmap to ensure the character is centered
-        val paddedBitmap = Bitmap.createBitmap(imageSize, imageSize, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(paddedBitmap)
-        canvas.drawColor(Color.WHITE)
+        // Convert to grayscale if needed
+        val grayscaleBitmap = convertToGrayscale(resizedBitmap)
 
-        // Calculate padding to center the character
-        val bounds = calculateBounds(scaledBitmap)
-        val centerX = (imageSize - (bounds.right - bounds.left)) / 2f
-        val centerY = (imageSize - (bounds.bottom - bounds.top)) / 2f
+        // Create input buffer
+        val inputBuffer = ByteBuffer.allocateDirect(1 * imageSize * imageSize * 4)
+        inputBuffer.order(ByteOrder.nativeOrder())
 
-        // Draw centered character
-        canvas.drawBitmap(scaledBitmap, centerX, centerY, Paint())
-
-        // Convert to grayscale
-        val grayscaleBitmap = convertToGrayscale(paddedBitmap)
-
-        // Create input array
-        val inputArray = Array(1) {
-            Array(imageSize) {
-                Array(imageSize) {
-                    FloatArray(1)
-                }
-            }
-        }
-
-        // Fill array with normalized values
+        // Normalize pixels exactly like Python: simply divide by 255
         for (y in 0 until imageSize) {
             for (x in 0 until imageSize) {
                 val pixel = grayscaleBitmap.getPixel(x, y)
-                val value = 1f - (Color.red(pixel) / 255f)  // Invert values: black=1, white=0
-                inputArray[0][y][x][0] = value
+                val grayValue = Color.red(pixel) / 255.0f
+                inputBuffer.putFloat(grayValue)
             }
         }
 
-        return inputArray
+        inputBuffer.rewind()
+        return inputBuffer
     }
+
 
     private fun calculateBounds(bitmap: Bitmap): Rect {
         val bounds = Rect()
@@ -267,15 +293,26 @@ class MLStrokeValidator(private val context: Context) {
 
     // MLStrokeValidator.kt
     companion object {
+        //        val CHARACTER_MAP = mapOf(
+//            0 to "ก",   1 to "ข",   2 to "ฃ",   3 to "ค",   4 to "ฅ",   5 to "ฆ",   6 to "ง",
+//            7 to "จ",   8 to "ฉ",   9 to "ช",   10 to "ซ",  11 to "ฌ",  12 to "ญ",  13 to "ฎ",
+//            14 to "ฏ",  15 to "ฐ",  16 to "ฑ",  17 to "ฒ",  18 to "ณ",  19 to "ด",  20 to "ต",
+//            21 to "ถ",  22 to "ท",  23 to "ธ",  24 to "น",  25 to "บ",  26 to "ป",  27 to "ผ",
+//            28 to "ฝ",  29 to "พ",  30 to "ฟ",  31 to "ภ",  32 to "ม",  33 to "ย",  34 to "ร",
+//            35 to "ฤ",  36 to "ล",  37 to "ว",  38 to "ศ",  39 to "ษ",  40 to "ส",  41 to "ห",
+//            42 to "ฬ",  43 to "อ",  44 to "อะ", 45 to "อา", 46 to "อำ", 47 to "ฮ",  48 to "ฯ",
+//            49 to "เ",  50 to "แ",  51 to "โ",  52 to "ใ",  53 to "ไ",  54 to "ๆ"
+//        )
+        //
         val CHARACTER_MAP = mapOf(
-            0 to "ก",   1 to "ข",   2 to "ฃ",   3 to "ค",   4 to "ฅ",   5 to "ฆ",   6 to "ง",
-            7 to "จ",   8 to "ฉ",   9 to "ช",   10 to "ซ",  11 to "ฌ",  12 to "ญ",  13 to "ฎ",
-            14 to "ฏ",  15 to "ฐ",  16 to "ฑ",  17 to "ฒ",  18 to "ณ",  19 to "ด",  20 to "ต",
-            21 to "ถ",  22 to "ท",  23 to "ธ",  24 to "น",  25 to "บ",  26 to "ป",  27 to "ผ",
-            28 to "ฝ",  29 to "พ",  30 to "ฟ",  31 to "ภ",  32 to "ม",  33 to "ย",  34 to "ร",
-            35 to "ฤ",  36 to "ล",  37 to "ว",  38 to "ศ",  39 to "ษ",  40 to "ส",  41 to "ห",
-            42 to "ฬ",  43 to "อ",  44 to "อะ", 45 to "อา", 46 to "อำ", 47 to "ฮ",  48 to "ฯ",
-            49 to "เ",  50 to "แ",  51 to "โ",  52 to "ใ",  53 to "ไ",  54 to "ๆ"
+            0 to "ก", 1 to "ข", 2 to "ฃ", 3 to "ค", 4 to "ฅ", 5 to "ฆ", 6 to "ง",
+            7 to "จ", 8 to "ฉ", 9 to "ช", 10 to "ซ", 11 to "ฌ", 12 to "ญ", 13 to "ฎ",
+            14 to "ฏ", 15 to "ฐ", 16 to "ฑ", 17 to "ฒ", 18 to "ณ", 19 to "ด", 20 to "ต",
+            21 to "ถ", 22 to "ท", 23 to "ธ", 24 to "น", 25 to "บ", 26 to "ป", 27 to "ผ",
+            28 to "ฝ", 29 to "พ", 30 to "ฟ", 31 to "ภ", 32 to "ม", 33 to "ย", 34 to "ร",
+            35 to "ฤ", 36 to "ล", 37 to "ว", 38 to "ศ", 39 to "ษ", 40 to "ส", 41 to "ห",
+            42 to "ฬ", 43 to "อ", 44 to "อะ", 45 to "อา", 46 to "อำ", 47 to "ฮ", 48 to "ฯ",
+            49 to "เ", 50 to "แ", 51 to "โ", 52 to "ใ", 53 to "ไ", 54 to "ๆ"
         )
 
         fun getCharacterFromIndex(index: Int): String = CHARACTER_MAP[index] ?: "?"
@@ -316,42 +353,3 @@ data class ValidationResult(
     val mlPrediction: CharacterPrediction?,
     val confidence: Float
 )
-
-//private fun convertToGrayscale(bitmap: Bitmap): Bitmap {
-//    val width = bitmap.width
-//    val height = bitmap.height
-//    val grayscaleBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//    val canvas = Canvas(grayscaleBitmap)
-//
-//    val paint = Paint().apply {
-//        colorFilter = ColorMatrixColorFilter(ColorMatrix().apply {
-//            // Standard grayscale conversion matrix
-//            setSaturation(0f)
-//        })
-//    }
-//
-//    // Draw the original bitmap with the grayscale color filter
-//    canvas.drawBitmap(bitmap, 0f, 0f, paint)
-//
-//    // Invert colors if necessary to match training data
-//    // (black text on white background or vice versa)
-//    val invertColors = ColorMatrixColorFilter(ColorMatrix().apply {
-//        val matrix = floatArrayOf(
-//            -1f, 0f, 0f, 0f, 255f,  // Red
-//            0f, -1f, 0f, 0f, 255f,  // Green
-//            0f, 0f, -1f, 0f, 255f,  // Blue
-//            0f, 0f, 0f, 1f, 0f      // Alpha
-//        )
-//        set(matrix)
-//    })
-//
-//    val invertPaint = Paint().apply {
-//        colorFilter = invertColors
-//    }
-//
-//    val finalBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//    val finalCanvas = Canvas(finalBitmap)
-//    finalCanvas.drawBitmap(grayscaleBitmap, 0f, 0f, invertPaint)
-//
-//    return finalBitmap
-//}
