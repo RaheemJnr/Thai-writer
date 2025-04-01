@@ -55,6 +55,22 @@ class CharacterPracticeViewModel(
 
     private val _prediction = MutableStateFlow<CharacterPrediction?>(null)
     val prediction = _prediction.asStateFlow()
+    //
+    // Add these properties to CharacterPracticeViewModel
+    private val _drawingPaths = MutableStateFlow<List<Path>>(emptyList())
+    val drawingPaths = _drawingPaths.asStateFlow()
+
+    private val _pathColor = MutableStateFlow(Color.Black)
+    val pathColor = _pathColor.asStateFlow()
+
+    private val _isCorrect = MutableStateFlow(false)
+    val isCorrect = _isCorrect.asStateFlow()
+
+    private val _instructionText = MutableStateFlow("trace the character")
+    val instructionText = _instructionText.asStateFlow()
+
+    private val _showGuide = MutableStateFlow(true)
+    val showGuide = _showGuide.asStateFlow()
 
     init {
         loadNextCharacter()
@@ -83,21 +99,71 @@ class CharacterPracticeViewModel(
         }
     }
 
-    fun checkAnswer() {
-        viewModelScope.launch {
-            // Compare prediction with current character
-            prediction.value?.let { pred ->
-                if (pred.confidence > 0.7f) {  // Adjust threshold as needed
-                    updateProgress()
-                }
+//    fun checkAnswer() {
+//        viewModelScope.launch {
+//            // Compare prediction with current character
+//            prediction.value?.let { pred ->
+//                if (pred.confidence > 0.7f) {  // Adjust threshold as needed
+//                    updateProgress()
+//                }
+//            }
+//        }
+//    }
+fun checkAnswer() {
+    viewModelScope.launch {
+        // Compare prediction with current character
+        prediction.value?.let { pred ->
+            val isCorrectPrediction = currentCharacter.value?.id == pred.characterIndex &&
+                    pred.confidence > 0.7f
+
+            if (isCorrectPrediction) {
+                // Animate to green color
+                _pathColor.value = Color.Green
+                _isCorrect.value = true
+                _instructionText.value = "tap to advance"
+                updateProgress()
+            } else {
+                // Show feedback
+                _isCorrect.value = false
             }
         }
     }
+}
+    // New method to handle animated correction
+    fun animateCorrection() {
+        viewModelScope.launch {
+            // This would morph the path to the correct shape
+            // For a placeholder effect:
+            delay(500) // Simulate morph animation time
+            _pathColor.value = Color.Green
+            _isCorrect.value = true
+            _instructionText.value = "tap to advance"
+        }
+    }
 
+    // Update next character to progress through modes
     fun nextCharacter() {
         clearCanvas()
-        loadNextCharacter()
+        if (_isCorrect.value) {
+            // If completed correctly, load next character
+            _isCorrect.value = false
+            _pathColor.value = Color.Black
+
+            // First time show with guide, second time without
+            _showGuide.value = !_showGuide.value
+            _instructionText.value = if (_showGuide.value) "trace the character" else "write the character"
+
+            loadNextCharacter()
+        } else {
+            // If still practicing, just clear the canvas
+            _instructionText.value = if (_showGuide.value) "trace the character" else "write the character"
+        }
     }
+
+//    fun nextCharacter() {
+//        clearCanvas()
+//        loadNextCharacter()
+//    }
 
     private fun loadNextCharacter() {
         _currentCharacter.value = allCharacters.random()

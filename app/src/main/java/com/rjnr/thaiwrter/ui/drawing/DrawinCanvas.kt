@@ -101,27 +101,19 @@ import kotlin.math.sqrt
 fun DrawingCanvas(
     modifier: Modifier = Modifier,
     shouldClear: Boolean = false,
-    pathColor: Color = Color.Black,
     onDrawingComplete: (List<Point>, Int, Int) -> Unit
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var currentPath by remember { mutableStateOf(Path()) }
     val currentPoints = remember { mutableStateListOf<Point>() }
     val paths = remember { mutableStateListOf<Path>() }
-    val pointSpeeds = remember { mutableStateListOf<Float>() }
-
-    // For tracking drawing speed
-    var lastPoint by remember { mutableStateOf<Offset?>(null) }
-    var lastTime by remember { mutableLongStateOf(0L) }
 
     // React to shouldClear changes
     LaunchedEffect(shouldClear) {
         if (shouldClear) {
             currentPath = Path()
             currentPoints.clear()
-            pointSpeeds.clear()
             paths.clear()
-            lastPoint = null
         }
     }
 
@@ -138,40 +130,17 @@ fun DrawingCanvas(
                             moveTo(offset.x, offset.y)
                         }
                         currentPoints.clear()
-                        pointSpeeds.clear()
                         currentPoints.add(Point(offset.x, offset.y))
-                        pointSpeeds.add(1f) // Initial point
-                        lastPoint = offset
-                        lastTime = System.currentTimeMillis()
                     },
                     onDragEnd = {
                         paths.add(currentPath)
-                        onDrawingComplete(
-                            currentPoints.toList(),
-                            canvasSize.width,
-                            canvasSize.height
-                        )
+                        onDrawingComplete(currentPoints.toList(), canvasSize.width, canvasSize.height)
                     },
                     onDrag = { change, _ ->
                         change.consume()
                         val newPoint = change.position
                         currentPath.lineTo(newPoint.x, newPoint.y)
-
-                        // Calculate drawing speed
-                        val currentTime = System.currentTimeMillis()
-                        val speed = lastPoint?.let { lastPt ->
-                            val distance = sqrt(
-                                (newPoint.x - lastPt.x).pow(2) +
-                                        (newPoint.y - lastPt.y).pow(2)
-                            )
-                            val timeDiff = max(currentTime - lastTime, 1L)
-                            distance / timeDiff
-                        } ?: 0f
-
                         currentPoints.add(Point(newPoint.x, newPoint.y))
-                        pointSpeeds.add(speed)
-                        lastPoint = newPoint
-                        lastTime = currentTime
                     }
                 )
             }
@@ -179,34 +148,21 @@ fun DrawingCanvas(
         // Draw background
         drawRect(Color.White, Offset.Zero, size)
 
-        // Draw completed paths
+        // Draw completed paths with MUCH thicker stroke (16-20dp)
         paths.forEach { path ->
             drawPath(
                 path = path,
-                color = pathColor,
-                style = Stroke(width = 10f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                color = Color.Black,
+                style = Stroke(width = 16f, cap = StrokeCap.Round, join = StrokeJoin.Round)
             )
         }
 
-        // Draw current path with variable width
-        if (currentPoints.size > 1) {
-            for (i in 1 until currentPoints.size) {
-                val p1 = currentPoints[i - 1]
-                val p2 = currentPoints[i]
-                val speed = pointSpeeds[i]
-
-                // Width varies from 4dp to 12dp based on speed
-                val width = 12f - (speed * 30f).coerceIn(0f, 8f)
-
-                drawLine(
-                    color = pathColor,
-                    start = Offset(p1.x, p1.y),
-                    end = Offset(p2.x, p2.y),
-                    strokeWidth = width,
-                    cap = StrokeCap.Round
-                )
-            }
-        }
+        // Draw current path with same thick stroke
+        drawPath(
+            path = currentPath,
+            color = Color.Black,
+            style = Stroke(width = 16f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
     }
 }
 

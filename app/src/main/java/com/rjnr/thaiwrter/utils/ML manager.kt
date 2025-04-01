@@ -16,6 +16,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.concurrent.locks.ReentrantLock
+import androidx.core.graphics.scale
+import androidx.core.graphics.get
 
 data class CharacterPrediction(
     val characterIndex: Int,
@@ -67,26 +69,6 @@ class MLStrokeValidator(private val context: Context) {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
-    //    fun predictCharacter(points: List<Point>, width: Float, height: Float): CharacterPrediction? {
-//        return try {
-//            lock.withLock {
-//                val bitmap = convertStrokeToBitmap(points, width, height)
-//                val inputArray = preprocessImage(bitmap)
-//
-//                // Prepare output array
-//                val outputArray = Array(1) { FloatArray(55) } // 55 classes
-//
-//                // Run inference
-//                interpreter?.run(inputArray, outputArray)
-//
-//                // Process results
-//                processResults(outputArray[0])
-//            }
-//        } catch (e: Exception) {
-//            Log.e("MLStrokeValidator", "Error during prediction", e)
-//            null
-//        }
-//    }
     fun predictCharacter(points: List<Point>, width: Float, height: Float): CharacterPrediction? {
         return try {
             val bitmap = convertStrokeToBitmap(points, width, height)
@@ -166,73 +148,10 @@ class MLStrokeValidator(private val context: Context) {
         return bitmap
     }
 
-    //    private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
-//        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
-//        val grayscaleBitmap = convertToGrayscale(scaledBitmap)
-//
-//        val inputArray = Array(1) {
-//            Array(imageSize) {
-//                Array(imageSize) {
-//                    FloatArray(1)
-//                }
-//            }
-//        }
-//
-//        // Match the training preprocessing exactly
-//        for (y in 0 until imageSize) {
-//            for (x in 0 until imageSize) {
-//                val pixel = grayscaleBitmap.getPixel(x, y)
-//                // Convert to grayscale and normalize to [0,1]
-//                val gray = Color.red(pixel) / 255f
-//                inputArray[0][y][x][0] = gray
-//            }
-//        }
-//
-//        return inputArray
-//    }
-//    private fun preprocessImage(bitmap: Bitmap): Array<Array<Array<FloatArray>>> {
-//        val scaledBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
-//
-//        // Create a padded bitmap to ensure the character is centered
-//        val paddedBitmap = Bitmap.createBitmap(imageSize, imageSize, Bitmap.Config.ARGB_8888)
-//        val canvas = Canvas(paddedBitmap)
-//        canvas.drawColor(Color.WHITE)
-//
-//        // Calculate padding to center the character
-//        val bounds = calculateBounds(scaledBitmap)
-//        val centerX = (imageSize - (bounds.right - bounds.left)) / 2f
-//        val centerY = (imageSize - (bounds.bottom - bounds.top)) / 2f
-//
-//        // Draw centered character
-//        canvas.drawBitmap(scaledBitmap, centerX, centerY, Paint())
-//
-//        // Convert to grayscale
-//        val grayscaleBitmap = convertToGrayscale(paddedBitmap)
-//
-//        // Create input array
-//        val inputArray = Array(1) {
-//            Array(imageSize) {
-//                Array(imageSize) {
-//                    FloatArray(1)
-//                }
-//            }
-//        }
-//
-//        // Fill array with normalized values
-//        for (y in 0 until imageSize) {
-//            for (x in 0 until imageSize) {
-//                val pixel = grayscaleBitmap.getPixel(x, y)
-//                val value = 1f - (Color.red(pixel) / 255f)  // Invert values: black=1, white=0
-//                inputArray[0][y][x][0] = value
-//            }
-//        }
-//
-//        return inputArray
-//    }
     // 2. Fix preprocessing to match Python code
     private fun preprocessImage(bitmap: Bitmap): ByteBuffer {
         // Resize to 256x256
-        val resizedBitmap = Bitmap.createScaledBitmap(bitmap, imageSize, imageSize, true)
+        val resizedBitmap = bitmap.scale(imageSize, imageSize)
 
         // Convert to grayscale if needed
         val grayscaleBitmap = convertToGrayscale(resizedBitmap)
@@ -244,7 +163,7 @@ class MLStrokeValidator(private val context: Context) {
         // Normalize pixels exactly like Python: simply divide by 255
         for (y in 0 until imageSize) {
             for (x in 0 until imageSize) {
-                val pixel = grayscaleBitmap.getPixel(x, y)
+                val pixel = grayscaleBitmap[x, y]
                 val grayValue = Color.red(pixel) / 255.0f
                 inputBuffer.putFloat(grayValue)
             }
@@ -265,7 +184,7 @@ class MLStrokeValidator(private val context: Context) {
         // Find the bounds of the character (non-white pixels)
         for (y in 0 until bitmap.height) {
             for (x in 0 until bitmap.width) {
-                val pixel = bitmap.getPixel(x, y)
+                val pixel = bitmap[x, y]
                 if (pixel != Color.WHITE) {
                     minX = minOf(minX, x)
                     minY = minOf(minY, y)
@@ -293,17 +212,7 @@ class MLStrokeValidator(private val context: Context) {
 
     // MLStrokeValidator.kt
     companion object {
-        //        val CHARACTER_MAP = mapOf(
-//            0 to "ก",   1 to "ข",   2 to "ฃ",   3 to "ค",   4 to "ฅ",   5 to "ฆ",   6 to "ง",
-//            7 to "จ",   8 to "ฉ",   9 to "ช",   10 to "ซ",  11 to "ฌ",  12 to "ญ",  13 to "ฎ",
-//            14 to "ฏ",  15 to "ฐ",  16 to "ฑ",  17 to "ฒ",  18 to "ณ",  19 to "ด",  20 to "ต",
-//            21 to "ถ",  22 to "ท",  23 to "ธ",  24 to "น",  25 to "บ",  26 to "ป",  27 to "ผ",
-//            28 to "ฝ",  29 to "พ",  30 to "ฟ",  31 to "ภ",  32 to "ม",  33 to "ย",  34 to "ร",
-//            35 to "ฤ",  36 to "ล",  37 to "ว",  38 to "ศ",  39 to "ษ",  40 to "ส",  41 to "ห",
-//            42 to "ฬ",  43 to "อ",  44 to "อะ", 45 to "อา", 46 to "อำ", 47 to "ฮ",  48 to "ฯ",
-//            49 to "เ",  50 to "แ",  51 to "โ",  52 to "ใ",  53 to "ไ",  54 to "ๆ"
-//        )
-        //
+
         val CHARACTER_MAP = mapOf(
             0 to "ก", 1 to "ข", 2 to "ฃ", 3 to "ค", 4 to "ฅ", 5 to "ฆ", 6 to "ง",
             7 to "จ", 8 to "ฉ", 9 to "ช", 10 to "ซ", 11 to "ฌ", 12 to "ญ", 13 to "ฎ",

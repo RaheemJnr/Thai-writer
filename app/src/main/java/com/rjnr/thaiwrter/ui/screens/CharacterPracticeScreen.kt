@@ -1,5 +1,6 @@
 package com.rjnr.thaiwrter.ui.screens
 
+import CharacterGuideOverlay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -23,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingCanvas
@@ -34,16 +37,17 @@ fun CharacterPracticeScreen(
     viewModel: CharacterPracticeViewModel = koinViewModel(),
     navController: NavController
 ) {
-    //Log.d("CharacterPracticeScreen", "Current character: ${currentCharacter?.character}")
-//    val currentCharacter by viewModel.currentCharacter.collectAsState()
-//    val paths by viewModel.paths.collectAsState()
-//    val strokeFeedback by viewModel.strokeFeedback.collectAsState()
-//    val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
-//    val mlPrediction by viewModel.mlPrediction.collectAsState()
-//    val confidence by viewModel.confidence.collectAsState()
+    //
     val prediction by viewModel.prediction.collectAsState()
     val currentCharacter by viewModel.currentCharacter.collectAsState()
     val shouldClearCanvas by viewModel.shouldClearCanvas.collectAsState()
+    val pathColor by viewModel.pathColor.collectAsState()
+    val isCorrect by viewModel.isCorrect.collectAsState()
+    val instructionText by viewModel.instructionText.collectAsState()
+    val showGuide by viewModel.showGuide.collectAsState()
+
+    // System metrics for proper scaling
+    val metrics = LocalDensity.current.density
 
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -77,16 +81,29 @@ fun CharacterPracticeScreen(
                     .aspectRatio(1f)
                     .padding(vertical = 16.dp)
             ) {
-                DrawingCanvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .border(2.dp, Color.Gray, RoundedCornerShape(8.dp))
-                        .clip(RoundedCornerShape(8.dp)),
-                    shouldClear = shouldClearCanvas,
-                    onDrawingComplete = { points, width, height ->
-                        viewModel.onDrawingComplete(points, width, height)
+                Card(
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Box {
+                        DrawingCanvas(
+                            modifier = Modifier.fillMaxSize(),
+                            shouldClear = shouldClearCanvas,
+                            onDrawingComplete = { points, width, height ->
+                                viewModel.onDrawingComplete(points, width, height)
+                            }
+                        )
+
+                        // Character guide overlay
+                        if (showGuide) {
+                            CharacterGuideOverlay(
+                                character = currentCharacter?.character ?: "",
+                                isVisible = true,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
-                )
+                }
             }
 
             // Prediction results
@@ -146,20 +163,35 @@ fun CharacterPracticeScreen(
                 }
             }
 
+            // Controls
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Button(onClick = viewModel::clearCanvas) {
-                    Text("Clear")
+                Button(
+                    onClick = viewModel::clearCanvas,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C6BC0))
+                ) {
+                    Text("Clear", color = Color.White)
                 }
-                Button(onClick = viewModel::checkAnswer) {
-                    Text("Check")
+
+                Button(
+                    onClick = viewModel::checkAnswer,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C6BC0))
+                ) {
+                    Text("Check", color = Color.White)
                 }
-                Button(onClick = viewModel::nextCharacter) {
-                    Text("Next")
+
+                Button(
+                    onClick = viewModel::nextCharacter,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C6BC0))
+                ) {
+                    Text("Next", color = Color.White)
                 }
             }
         }
