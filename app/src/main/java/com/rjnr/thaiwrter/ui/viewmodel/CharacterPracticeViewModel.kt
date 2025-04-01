@@ -142,28 +142,28 @@ fun checkAnswer() {
     }
 
     // Update next character to progress through modes
-    fun nextCharacter() {
-        clearCanvas()
-        if (_isCorrect.value) {
-            // If completed correctly, load next character
-            _isCorrect.value = false
-            _pathColor.value = Color.Black
-
-            // First time show with guide, second time without
-            _showGuide.value = !_showGuide.value
-            _instructionText.value = if (_showGuide.value) "trace the character" else "write the character"
-
-            loadNextCharacter()
-        } else {
-            // If still practicing, just clear the canvas
-            _instructionText.value = if (_showGuide.value) "trace the character" else "write the character"
-        }
-    }
-
 //    fun nextCharacter() {
 //        clearCanvas()
-//        loadNextCharacter()
+//        if (_isCorrect.value) {
+//            // If completed correctly, load next character
+//            _isCorrect.value = false
+//            _pathColor.value = Color.Black
+//
+//            // First time show with guide, second time without
+//            _showGuide.value = !_showGuide.value
+//            _instructionText.value = if (_showGuide.value) "trace the character" else "write the character"
+//
+//            loadNextCharacter()
+//        } else {
+//            // If still practicing, just clear the canvas
+//            _instructionText.value = if (_showGuide.value) "trace the character" else "write the character"
+//        }
 //    }
+
+    fun nextCharacter() {
+        clearCanvas()
+        loadNextCharacter()
+    }
 
     private fun loadNextCharacter() {
         _currentCharacter.value = allCharacters.random()
