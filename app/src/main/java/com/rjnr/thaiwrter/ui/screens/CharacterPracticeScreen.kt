@@ -116,7 +116,7 @@ fun CharacterPracticeScreen(
                         if (showGuide) {
                             StrokeGuide(
                                 svgPathData = perfectStroke,
-                                paddingRatio = 0.15f,            // shrink the guide
+                                marginRatio = 0.15f,            // shrink the guide
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
