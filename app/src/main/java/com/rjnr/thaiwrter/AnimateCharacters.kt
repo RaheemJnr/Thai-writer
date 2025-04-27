@@ -110,6 +110,7 @@ fun MorphOverlay(
     modifier: Modifier = Modifier,
     onFinished: () -> Unit
 ) {
+
     // parse & scale the perfect path to the same canvas space
     val targetPath = remember(perfectSvg) {
         androidx.compose.ui.graphics.vector.PathParser()
@@ -129,6 +130,8 @@ fun MorphOverlay(
 
     /* -- scale targetPath to canvas each draw -- */
     Canvas(modifier) {
+        val strokePx = 0.06f * min(size.width, size.height)
+
         // Fit exactly the way StrokeGuide does
         val r = android.graphics.RectF().also { targetPath.computeBounds(it, true) }
         val scale = min(size.width / r.width(), size.height / r.height()) * 0.9f
@@ -141,9 +144,6 @@ fun MorphOverlay(
         val perfectCanvas = android.graphics.Path().apply {
             set(targetPath); transform(m)
         }
-
-
-        val strokePx = 0.03f * min(size.width, size.height)
         // 0 = user visible, 1 = perfect visible
         drawPath(
             path = userPath,
@@ -152,7 +152,7 @@ fun MorphOverlay(
             alpha = 1f - progress.value
         )
         drawPath(
-            path = perfectCanvas.asComposePath(), color = Color(0xFF5B4CE0),
+            path = perfectCanvas.asComposePath(), color = Color.Green,
             style = Stroke(width = strokePx, cap = StrokeCap.Round),
             alpha = progress.value
         )
