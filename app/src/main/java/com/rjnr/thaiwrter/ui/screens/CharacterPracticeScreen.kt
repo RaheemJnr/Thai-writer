@@ -1,5 +1,6 @@
 package com.rjnr.thaiwrter.ui.screens
 
+import MorphOverlay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,15 +19,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingCanvas
 import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
 import com.rjnr.thaiwrter.ui.drawing.isCloseEnough
+import com.rjnr.thaiwrter.ui.drawing.pathsAreClose
 import com.rjnr.thaiwrter.ui.drawing.testStroke
 import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -43,7 +49,6 @@ fun CharacterPracticeScreen(
     val pathColor by viewModel.pathColor.collectAsState()
     val isCorrect by viewModel.isCorrect.collectAsState()
     val instructionText by viewModel.instructionText.collectAsState()
-    val showGuide by viewModel.showGuide.collectAsState()
 
     // System metrics for proper scaling
     val metrics = LocalDensity.current.density
@@ -54,6 +59,16 @@ fun CharacterPracticeScreen(
     }
     val perfectStroke =
         "M14 127C11.6 38.2 7 55 28 33L1 15C1 15 26.9941 0.0325775 45 1C60.4269 1.82886 82 5.00001 82 15C82 25 82 127 82 127"
+
+    val perfectPath = remember(perfectStroke) {
+        PathParser()
+            .parsePathString(perfectStroke)
+            .toPath()
+    }
+    /* --- state --- */
+    var showGuide by remember { mutableStateOf(true) }
+    var showMorph by remember { mutableStateOf(false) }
+    var userPathForMorph by remember { mutableStateOf<Path?>(null) }
 
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -91,36 +106,47 @@ fun CharacterPracticeScreen(
                     modifier = Modifier.fillMaxSize(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Box {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .padding(16.dp)
+                    ) {
                         // Main drawing canvas
-                        StrokeGuide(perfectStroke, modifier = Modifier.fillMaxSize())
+                        if (showGuide) {
+                            StrokeGuide(
+                                svgPathData = perfectStroke,
+                                paddingRatio = 0.15f,            // shrink the guide
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                         DrawingCanvas(
                             modifier = Modifier.fillMaxSize(),
                             shouldClear = shouldClearCanvas,
                             onStrokeFinished = { userPath ->
-                                if (isCloseEnough(
-                                        userPath,
-                                        androidx.compose.ui.graphics.vector.PathParser()
-                                            .parsePathString(perfectStroke).toPath()
-                                    )
-                                ) {
-                                    // success: trigger your success state / morph animation here
+                                if (pathsAreClose(userPath, perfectPath)) {
+                                    userPathForMorph = userPath
+                                    showGuide = false            // ① hide purple loop
+                                    showMorph = true
                                 }
                             }
                         )
-
-//                        // Optional animated guide overlay
-//                        if (showGuide) {
-//                            CharacterGuideOverlay(
-//                                character = currentCharacter?.character ?: "",
-//                                isVisible = instructionText == "trace the character",
-//                                modifier = Modifier.fillMaxSize()
-//                            )
-//                        }
+                        // ③ Morph overlay – only when showMorph == true
+                        if (showMorph && userPathForMorph != null) {
+                            MorphOverlay(
+                                userPath = userPathForMorph!!,
+                                perfectSvg = perfectStroke,
+                                onFinished = {
+                                    showMorph = false            // reset
+                                    viewModel::clearCanvas
+                                    showGuide = true             // ready for next try
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }
-
             // Prediction results
             prediction?.let { pred ->
                 Card(

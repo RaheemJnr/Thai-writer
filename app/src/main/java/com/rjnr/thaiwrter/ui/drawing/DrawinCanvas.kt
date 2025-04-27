@@ -1,7 +1,6 @@
 package com.rjnr.thaiwrter.ui.drawing
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -11,16 +10,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
-import com.rjnr.thaiwrter.data.models.Point
+import kotlin.math.min
 
 
 //@Composable
@@ -176,6 +172,7 @@ fun DrawingCanvas(
     var currentPath by remember { mutableStateOf(Path()) }
     val finishedPaths = remember { mutableStateListOf<Path>() }
 
+
     LaunchedEffect(shouldClear) {
         if (shouldClear) {
             currentPath = Path()
@@ -201,7 +198,8 @@ fun DrawingCanvas(
                 )
             }
     ) {
-        val style = Stroke(width = 16f, cap = StrokeCap.Round)
+        val strokePx = 0.06f * min(size.width, size.height)  // ≈6 % of box
+        val style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
         finishedPaths.forEach { drawPath(path = it, color = Color.Black, style = style) }
         drawPath(path = currentPath, color = Color.Black, style = style)
     }

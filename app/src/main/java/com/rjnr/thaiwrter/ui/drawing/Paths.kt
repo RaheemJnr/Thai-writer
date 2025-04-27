@@ -1,14 +1,12 @@
 package com.rjnr.thaiwrter.ui.drawing
 
-import android.R.attr.strokeWidth
 import android.graphics.Bitmap
 import android.graphics.Paint
-import android.graphics.PathMeasure
 import android.graphics.PorterDuff
+import android.graphics.RectF
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -18,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
+import kotlin.math.max
 import kotlin.math.min
 import android.graphics.Canvas as AndroidCanvas
 import androidx.compose.ui.graphics.Path as ComposePath
@@ -147,12 +148,12 @@ fun StrokeGuide(
         /* --- fit glyph into this canvas with padding --- */
         val padX = size.width * marginRatio
         val padY = size.height * marginRatio
-        val availW = size.width  - padX * 2
+        val availW = size.width - padX * 2
         val availH = size.height - padY * 2
 
         val scale = min(availW / rawBounds.width(), availH / rawBounds.height())
         val dx = padX + (availW - rawBounds.width() * scale) / 2f - rawBounds.left * scale
-        val dy = padY + (availH - rawBounds.height() * scale) / 2f - rawBounds.top  * scale
+        val dy = padY + (availH - rawBounds.height() * scale) / 2f - rawBounds.top * scale
 
         val m = android.graphics.Matrix().apply {
             postScale(scale, scale)
@@ -180,23 +181,9 @@ fun StrokeGuide(
 }
 
 
-
 /* ---------- Cheap similarity check ---------- */
 private fun pathSimilarity(user: ComposePath, target: ComposePath): Float {
     val size = 64                 // tiny bitmap for speed
-    fun ComposePath.toMask(): Bitmap {
-        val bmp = createBitmap(size, size, Bitmap.Config.ALPHA_8)
-        val c = AndroidCanvas(bmp)
-        c.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-        val p = Paint().apply {
-            color = android.graphics.Color.WHITE
-            style = Paint.Style.STROKE
-            strokeWidth = 6f
-            isAntiAlias = true
-        }
-        c.drawPath(this@toMask.toAndroid(), p)
-        return bmp
-    }
     return toMaskDiff(user.toMask(), target.toMask())
 }
 
@@ -214,6 +201,78 @@ private fun toMaskDiff(a: Bitmap, b: Bitmap): Float {
 
 fun isCloseEnough(user: ComposePath, target: ComposePath) =
     pathSimilarity(user, target) >= 0.8f
+
+private const val MASK_SIZE = 64
+private const val PADDING = 0.05f          // 5 %
+
+private fun ComposePath.normalised(): Path {
+    val android = this.asAndroidPath()
+    val bounds = RectF().also { android.computeBounds(it, true) }
+
+    // leave a 5 % gutter
+    val avail = (1f - PADDING * 2)
+    val scale = avail * MASK_SIZE / max(bounds.width(), bounds.height())
+
+    val dx = (MASK_SIZE - bounds.width() * scale) / 2f - bounds.left * scale
+    val dy = (MASK_SIZE - bounds.height() * scale) / 2f - bounds.top * scale
+
+    return Path().apply {
+        transform(Matrix().apply {
+            scale(scale, scale)
+            translate(dx, dy)
+//            postScale(scale, scale)
+//            postTranslate(dx, dy)
+        })
+    }
+}
+
+//private fun Path.toMask(): Bitmap {
+//    val bmp = Bitmap.createBitmap(MASK_SIZE, MASK_SIZE, Bitmap.Config.ALPHA_8)
+//    val c   = Canvas(bmp)
+//    val p   = Paint().apply {
+//        color = Color.WHITE
+//        style = Paint.Style.STROKE
+//        strokeWidth = 6f
+//        isAntiAlias = true
+//        strokeCap = Paint.Cap.ROUND
+//        strokeJoin = Paint.Join.ROUND
+//    }
+//    c.drawPath(this, p)
+//    return bmp
+//}
+fun ComposePath.toMask(): Bitmap {
+    val bmp = createBitmap(MASK_SIZE, MASK_SIZE, Bitmap.Config.ALPHA_8)
+    val c = AndroidCanvas(bmp)
+    c.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+    val p = Paint().apply {
+        color = android.graphics.Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = 6f
+        isAntiAlias = true
+    }
+    c.drawPath(this@toMask.toAndroid(), p)
+    return bmp
+}
+
+private fun bitmapSimilarity(a: Bitmap, b: Bitmap): Float {
+    var same = 0
+    val total = MASK_SIZE * MASK_SIZE
+    for (y in 0 until MASK_SIZE) {
+        for (x in 0 until MASK_SIZE) {
+            val hitA = a.getPixel(x, y) != 0
+            val hitB = b.getPixel(x, y) != 0
+            if (hitA == hitB) same++
+        }
+    }
+    return same / total.toFloat()      // 1 == identical
+}
+
+/** Public entry – call from onStrokeFinished */
+fun pathsAreClose(user: ComposePath, perfect: ComposePath, threshold: Float = 0.7f): Boolean {
+    val a = user.normalised().toMask()
+    val b = perfect.normalised().toMask()
+    return bitmapSimilarity(a, b) >= threshold
+}
 
 @Preview(showBackground = true)
 @Composable
