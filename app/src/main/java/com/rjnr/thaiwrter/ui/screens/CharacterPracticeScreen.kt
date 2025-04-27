@@ -1,8 +1,6 @@
 package com.rjnr.thaiwrter.ui.screens
 
-import CharacterGuideOverlay
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +18,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingCanvas
+import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
+import com.rjnr.thaiwrter.ui.drawing.isCloseEnough
+import com.rjnr.thaiwrter.ui.drawing.testStroke
 import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -47,6 +47,13 @@ fun CharacterPracticeScreen(
 
     // System metrics for proper scaling
     val metrics = LocalDensity.current.density
+    val strokePath = remember(testStroke.pathData) {
+        androidx.compose.ui.graphics.vector.PathParser()    // UI-graphics 1.7+
+            .parsePathString(testStroke.pathData)
+            .toPath()
+    }
+    val perfectStroke =
+        "M14 127C11.6 38.2 7 55 28 33L1 15C1 15 26.9941 0.0325775 45 1C60.4269 1.82886 82 5.00001 82 15C82 25 82 127 82 127"
 
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -86,22 +93,30 @@ fun CharacterPracticeScreen(
                 ) {
                     Box {
                         // Main drawing canvas
+                        StrokeGuide(perfectStroke, modifier = Modifier.fillMaxSize())
                         DrawingCanvas(
                             modifier = Modifier.fillMaxSize(),
                             shouldClear = shouldClearCanvas,
-                            onDrawingComplete = { points, width, height ->
-                                viewModel.onDrawingComplete(points, width, height)
+                            onStrokeFinished = { userPath ->
+                                if (isCloseEnough(
+                                        userPath,
+                                        androidx.compose.ui.graphics.vector.PathParser()
+                                            .parsePathString(perfectStroke).toPath()
+                                    )
+                                ) {
+                                    // success: trigger your success state / morph animation here
+                                }
                             }
                         )
 
-                        // Optional animated guide overlay
-                        if (showGuide) {
-                            CharacterGuideOverlay(
-                                character = currentCharacter?.character ?: "",
-                                isVisible = instructionText == "trace the character",
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
+//                        // Optional animated guide overlay
+//                        if (showGuide) {
+//                            CharacterGuideOverlay(
+//                                character = currentCharacter?.character ?: "",
+//                                isVisible = instructionText == "trace the character",
+//                                modifier = Modifier.fillMaxSize()
+//                            )
+//                        }
                     }
                 }
             }

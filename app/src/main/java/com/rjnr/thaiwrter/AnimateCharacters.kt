@@ -568,6 +568,7 @@ object ThaiCharacterStrokePaths {
     }
 }
 
+// does not work at all, infact not what i want
 @Composable
 fun CharacterGuideOverlay(
     character: String,

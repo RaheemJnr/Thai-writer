@@ -56,6 +56,7 @@ fun MainScreen(
                 .padding(paddingValues)
         ) {
             // Content will go here
+            Text("Main Screen Content")
         }
     }
 }
