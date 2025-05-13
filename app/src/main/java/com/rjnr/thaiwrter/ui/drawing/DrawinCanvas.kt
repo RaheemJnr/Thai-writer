@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.flow.SharedFlow
 import kotlin.math.min
 
 
@@ -163,47 +164,96 @@ import kotlin.math.min
 //}
 
 /* ---------- DrawingCanvas: minimal edits ---------- */
+//@Composable
+//fun DrawingCanvas(
+//    modifier: Modifier = Modifier,
+//    shouldClear: Boolean = false,
+//    onStrokeFinished: (Path) -> Unit
+//) {
+//    var currentPath by remember { mutableStateOf(Path()) }
+//    val finishedPaths = remember { mutableStateListOf<Path>() }
+//
+//
+//    LaunchedEffect(shouldClear) {
+//        if (shouldClear) {
+//            currentPath = Path()
+//            finishedPaths.clear()
+//        }
+//    }
+//
+//    Canvas(
+//        modifier = modifier
+//            .pointerInput(Unit) {
+//                detectDragGestures(
+//                    onDragStart = { off ->
+//                        currentPath = Path().apply { moveTo(off.x, off.y) }
+//                    },
+//                    onDragEnd = {
+//                        finishedPaths += currentPath
+//                        onStrokeFinished(currentPath)
+//                    },
+//                    onDrag = { change, _ ->
+//                        change.consume()
+//                        currentPath.lineTo(change.position.x, change.position.y)
+//                    }
+//                )
+//            }
+//    ) {
+//        val strokePx = 0.06f * min(size.width, size.height)  // ≈6 % of box
+//        val style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+//        finishedPaths.forEach { drawPath(path = it, color = Color.Black, style = style) }
+//        drawPath(path = currentPath, color = Color.Black, style = style)
+//    }
+//}
+
+
 @Composable
 fun DrawingCanvas(
     modifier: Modifier = Modifier,
-    shouldClear: Boolean = false,
-    onStrokeFinished: (Path) -> Unit
+    // shouldClear: Boolean = false, // Replaced by clearSignal
+    clearSignal: SharedFlow<Unit>,
+    onStrokeFinished: (Path) -> Unit,
+    enabled: Boolean = true // To disable drawing during morphing etc.
 ) {
     var currentPath by remember { mutableStateOf(Path()) }
-    val finishedPaths = remember { mutableStateListOf<Path>() }
+    // For single stroke characters, we only care about the last completed stroke for morphing.
+    // If you need multi-stroke, this logic would need to change.
+    // var finishedPaths = remember { mutableStateListOf<Path>() } // Not needed if we only handle one stroke at a time for morphing
 
-
-    LaunchedEffect(shouldClear) {
-        if (shouldClear) {
+    LaunchedEffect(Unit) { // Changed key to Unit, listen for signal
+        clearSignal.collect {
             currentPath = Path()
-            finishedPaths.clear()
+            // finishedPaths.clear() // If you were using it
         }
     }
 
     Canvas(
         modifier = modifier
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { off ->
-                        currentPath = Path().apply { moveTo(off.x, off.y) }
-                    },
-                    onDragEnd = {
-                        finishedPaths += currentPath
-                        onStrokeFinished(currentPath)
-                    },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        currentPath.lineTo(change.position.x, change.position.y)
-                    }
-                )
+            .pointerInput(enabled) { // Re-key pointerInput if 'enabled' changes
+                if (enabled) {
+                    detectDragGestures(
+                        onDragStart = { off ->
+                            currentPath = Path().apply { moveTo(off.x, off.y) }
+                        },
+                        onDragEnd = {
+                            // finishedPaths += currentPath // If collecting all strokes
+                            onStrokeFinished(currentPath)
+                            // currentPath = Path() // Clear current path for next potential stroke if needed
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            // Make sure currentPath is not reset mid-drag if onDragEnd clears it
+                            currentPath.lineTo(change.position.x, change.position.y)
+                        }
+                    )
+                }
             }
     ) {
-        val strokePx = 0.06f * min(size.width, size.height)  // ≈6 % of box
+        val strokePx = 0.06f * min(size.width, size.height)
         val style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        finishedPaths.forEach { drawPath(path = it, color = Color.Black, style = style) }
+        // finishedPaths.forEach { drawPath(path = it, color = Color.Black, style = style) }
         drawPath(path = currentPath, color = Color.Black, style = style)
     }
 }
-
 
 

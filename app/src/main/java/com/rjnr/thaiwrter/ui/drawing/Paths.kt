@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -35,7 +36,6 @@ data class StrokeSpec(
     val strokeWidth: Float = 14f
 )
 
-val testStroke = StrokeSpec("M 30 20 L 30 180")
 
 @Composable
 fun FirstPath(modifier: Modifier = Modifier) {
@@ -111,41 +111,104 @@ fun android.graphics.Path.toCompose() = this.asComposePath()
 //    }
 //}
 
+//@Composable
+//fun StrokeGuide(
+//    svgPathData: String,
+//    marginRatio: Float = 0.05f,          // 5 % padding around glyph
+//    durationMs: Int = 2500,              // slower – you’ll see it draw
+//    color: Color = Color(0xFF5B4CE0),
+//    modifier: Modifier = Modifier
+//) {
+//    /* ------------- parse raw path once ------------- */
+//    val rawPath = remember(svgPathData) {
+//        androidx.compose.ui.graphics.vector.PathParser()
+//            .parsePathString(svgPathData)
+//            .toPath()
+//            .asAndroidPath()
+//    }
+//    val rawBounds = remember {
+//        android.graphics.RectF().also { rawPath.computeBounds(it, true) }
+//    }
+//
+//    /* ------------- looping progress 0 ➜ 1 ------------- */
+//    val progress by rememberInfiniteTransition(label = "loop").animateFloat(
+//        initialValue = 0f,
+//        targetValue = 1f,
+//        animationSpec = infiniteRepeatable(
+//            animation = tween(durationMs, easing = LinearEasing),
+//            repeatMode = RepeatMode.Restart
+//        ),
+//        label = "glyphDraw"
+//    )
+//    val pm = remember { android.graphics.PathMeasure() }
+//    val pathScaled = remember { android.graphics.Path() }
+//
+//
+//    Canvas(modifier) {
+//        /* --- fit glyph into this canvas with padding --- */
+//        val padX = size.width * marginRatio
+//        val padY = size.height * marginRatio
+//        val availW = size.width - padX * 2
+//        val availH = size.height - padY * 2
+//
+//        val scale = min(availW / rawBounds.width(), availH / rawBounds.height())
+//        val dx = padX + (availW - rawBounds.width() * scale) / 2f - rawBounds.left * scale
+//        val dy = padY + (availH - rawBounds.height() * scale) / 2f - rawBounds.top * scale
+//
+//        val m = android.graphics.Matrix().apply {
+//            postScale(scale, scale)
+//            postTranslate(dx, dy)
+//        }
+//
+//        pathScaled.set(rawPath)
+//        pathScaled.transform(m)
+//
+//        /* --- stroke width ≈ 3 % of the shortest canvas edge --- */
+//        val strokePx = 0.03f * min(size.width, size.height)
+//
+//        /* --- segment according to progress --- */
+//
+//        pm.setPath(pathScaled, false)
+//        val seg = android.graphics.Path()
+//        pm.getSegment(0f, pm.length * progress, seg, true)
+//
+//        drawPath(
+//            seg.asComposePath(),
+//            color = color,
+//            style = Stroke(width = strokePx, cap = StrokeCap.Round)
+//        )
+//    }
+//}
 @Composable
 fun StrokeGuide(
-    svgPathData: String,
-    marginRatio: Float = 0.05f,          // 5 % padding around glyph
-    durationMs: Int = 2500,              // slower – you’ll see it draw
-    color: Color = Color(0xFF5B4CE0),
+    svgPathData: String?,
+    animationProgress: Float, // 0f to 1f for drawing animation
+    isTracingMode: Boolean,   // True if user should be tracing over a static guide
+    marginRatio: Float = 0.15f,
+    color: Color = Color(0xFF5B4CE0), // Purple-ish
+    staticGuideColor: Color = Color.DarkGray.copy(alpha = 0.5f), // Color for static guide
     modifier: Modifier = Modifier
 ) {
-    /* ------------- parse raw path once ------------- */
+    if (svgPathData.isNullOrEmpty()) {
+        // Optionally draw a placeholder or nothing
+        return
+    }
+
     val rawPath = remember(svgPathData) {
         androidx.compose.ui.graphics.vector.PathParser()
             .parsePathString(svgPathData)
             .toPath()
             .asAndroidPath()
     }
-    val rawBounds = remember {
-        android.graphics.RectF().also { rawPath.computeBounds(it, true) }
+    val rawBounds = remember(svgPathData) { // Recompute if svgPathData changes
+        RectF().also { rawPath.computeBounds(it, true) }
     }
 
-    /* ------------- looping progress 0 ➜ 1 ------------- */
-    val progress by rememberInfiniteTransition(label = "loop").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMs, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "glyphDraw"
-    )
     val pm = remember { android.graphics.PathMeasure() }
-    val pathScaled = remember { android.graphics.Path() }
-
+    val pathScaledAndTransformed = remember { android.graphics.Path() } // For the final display path
+    val animatedSegment = remember { android.graphics.Path() }
 
     Canvas(modifier) {
-        /* --- fit glyph into this canvas with padding --- */
         val padX = size.width * marginRatio
         val padY = size.height * marginRatio
         val availW = size.width - padX * 2
@@ -160,23 +223,32 @@ fun StrokeGuide(
             postTranslate(dx, dy)
         }
 
-        pathScaled.set(rawPath)
-        pathScaled.transform(m)
+        pathScaledAndTransformed.reset() // Clear before setting
+        pathScaledAndTransformed.set(rawPath)
+        pathScaledAndTransformed.transform(m)
 
-        /* --- stroke width ≈ 3 % of the shortest canvas edge --- */
-        val strokePx = 0.03f * min(size.width, size.height)
+        val strokePx = 0.06f * min(size.width, size.height) // Consistent stroke width
 
-        /* --- segment according to progress --- */
+        // Animate drawing the guide
+        if (animationProgress < 1.0f && !isTracingMode) { // Only animate if not yet fully drawn and not in static tracing mode
+            pm.setPath(pathScaledAndTransformed, false)
+            animatedSegment.reset()
+            pm.getSegment(0f, pm.length * animationProgress, animatedSegment, true)
+            drawPath(
+                animatedSegment.asComposePath(),
+                color = color,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+        }
 
-        pm.setPath(pathScaled, false)
-        val seg = android.graphics.Path()
-        pm.getSegment(0f, pm.length * progress, seg, true)
-
-        drawPath(
-            seg.asComposePath(),
-            color = color,
-            style = Stroke(width = strokePx, cap = StrokeCap.Round)
-        )
+        // Show static guide if animation is complete OR if in tracing mode (even if animation was quick)
+        if (animationProgress >= 1.0f || isTracingMode) {
+            drawPath(
+                pathScaledAndTransformed.asComposePath(),
+                color = if (isTracingMode) staticGuideColor else color, // Use a dimmer color for static tracing guide
+                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+        }
     }
 }
 

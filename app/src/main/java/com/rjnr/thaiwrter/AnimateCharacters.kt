@@ -9,9 +9,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlinx.coroutines.delay
 import kotlin.math.min
 
 //@Composable
@@ -102,61 +104,135 @@ import kotlin.math.min
 //        }
 //    }
 //}
+
+
+//@Composable
+//fun MorphOverlay(
+//    userPath: Path,          // what the user drew (canvas coords)
+//    perfectSvg: String,      // original SVG path data
+//    durationMs: Int = 600,
+//    modifier: Modifier = Modifier,
+//    onFinished: () -> Unit
+//) {
+//
+//    // parse & scale the perfect path to the same canvas space
+//    val targetPath = remember(perfectSvg) {
+//        androidx.compose.ui.graphics.vector.PathParser()
+//            .parsePathString(perfectSvg)
+//            .toPath()
+//            .asAndroidPath()
+//    }
+//    // progress 0 → 1
+//    val progress = remember { Animatable(0f) }
+//    LaunchedEffect(Unit) {
+//        progress.animateTo(
+//            1f,
+//            animationSpec = tween(durationMs, easing = FastOutSlowInEasing)
+//        )
+//        onFinished()
+//    }
+//
+//    /* -- scale targetPath to canvas each draw -- */
+//    Canvas(modifier) {
+//        val strokePx = 0.06f * min(size.width, size.height)
+//
+//        // Fit exactly the way StrokeGuide does
+//        val r = android.graphics.RectF().also { targetPath.computeBounds(it, true) }
+//        val scale = min(size.width / r.width(), size.height / r.height()) * 0.9f
+//        val dx = (size.width - r.width() * scale) / 2f - r.left * scale
+//        val dy = (size.height - r.height() * scale) / 2f - r.top * scale
+//        val m = android.graphics.Matrix().apply {
+//            postScale(scale, scale)
+//            postTranslate(dx, dy)
+//        }
+//        val perfectCanvas = android.graphics.Path().apply {
+//            set(targetPath); transform(m)
+//        }
+//        // 0 = user visible, 1 = perfect visible
+//        drawPath(
+//            path = userPath,
+//            color = Color.Black,
+//            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+//            alpha = 1f - progress.value
+//        )
+//        drawPath(
+//            path = perfectCanvas.asComposePath(), color = Color.Green,
+//            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+//            alpha = progress.value
+//        )
+//    }
+//}
+
+
 @Composable
 fun MorphOverlay(
-    userPath: Path,          // what the user drew (canvas coords)
-    perfectSvg: String,      // original SVG path data
-    durationMs: Int = 600,
+    userPath: Path,
+    perfectSvgData: String?, // Changed from perfectSvg to perfectSvgData
+    durationMs: Int = 800,   // Slightly longer for better visual
     modifier: Modifier = Modifier,
     onFinished: () -> Unit
 ) {
+    if (perfectSvgData.isNullOrEmpty()) {
+        LaunchedEffect(Unit) { onFinished() } // Call onFinished immediately if no perfect path
+        return
+    }
 
-    // parse & scale the perfect path to the same canvas space
-    val targetPath = remember(perfectSvg) {
+    val targetPath = remember(perfectSvgData) {
         androidx.compose.ui.graphics.vector.PathParser()
-            .parsePathString(perfectSvg)
+            .parsePathString(perfectSvgData)
             .toPath()
             .asAndroidPath()
     }
-    // progress 0 → 1
+    // ... rest of your MorphOverlay logic is good ...
+    // Make sure the scaling logic (m matrix) inside Canvas is robust
+
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         progress.animateTo(
             1f,
             animationSpec = tween(durationMs, easing = FastOutSlowInEasing)
         )
+        delay(200) // Small delay to let user see the green before it disappears or advances
         onFinished()
     }
+    val r = remember(targetPath) {
+        android.graphics.RectF().also { targetPath.computeBounds(it, true) }
+    }
 
-    /* -- scale targetPath to canvas each draw -- */
+
     Canvas(modifier) {
         val strokePx = 0.06f * min(size.width, size.height)
 
-        // Fit exactly the way StrokeGuide does
-        val r = android.graphics.RectF().also { targetPath.computeBounds(it, true) }
-        val scale = min(size.width / r.width(), size.height / r.height()) * 0.9f
+
+        val scale = min(
+            size.width / r.width(),
+            size.height / r.height()
+        ) * 0.85f // Adjusted margin slightly
         val dx = (size.width - r.width() * scale) / 2f - r.left * scale
         val dy = (size.height - r.height() * scale) / 2f - r.top * scale
         val m = android.graphics.Matrix().apply {
             postScale(scale, scale)
             postTranslate(dx, dy)
         }
-        val perfectCanvas = android.graphics.Path().apply {
+
+        val perfectCanvasPath = android.graphics.Path().apply {
             set(targetPath); transform(m)
         }
-        // 0 = user visible, 1 = perfect visible
+
+
+        // User path (fading out)
         drawPath(
             path = userPath,
             color = Color.Black,
-            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+            style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
             alpha = 1f - progress.value
         )
+        // Perfect path (fading in, green)
         drawPath(
-            path = perfectCanvas.asComposePath(), color = Color.Green,
-            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+            path = perfectCanvasPath.asComposePath(),
+            color = Color.Green, // Or your MaterialTheme.colorScheme.tertiary
+            style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
             alpha = progress.value
         )
     }
 }
-
-
