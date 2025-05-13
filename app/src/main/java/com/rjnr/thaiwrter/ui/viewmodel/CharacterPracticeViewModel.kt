@@ -1,38 +1,14 @@
 package com.rjnr.thaiwrter.ui.viewmodel
 
-import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rjnr.thaiwrter.data.models.Point
 import com.rjnr.thaiwrter.data.models.ThaiCharacter
-import com.rjnr.thaiwrter.data.models.UserProgress
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
-import com.rjnr.thaiwrter.utils.CharacterPrediction
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -40,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 
 // Add to your ViewModel or a separate file
@@ -59,8 +34,7 @@ enum class PracticeStep {
 class CharacterPracticeViewModel(
     private val repository: ThaiLanguageRepository, // Assuming you have this
     private val mlStrokeValidator: MLStrokeValidator
-) : ViewModel()
-{
+) : ViewModel() {
     // ...
     private val allCharacters = MLStrokeValidator.CHARACTER_MAP.map { (index, char) ->
         ThaiCharacter(
@@ -88,28 +62,56 @@ class CharacterPracticeViewModel(
 
     init {
         // Load the first character when ViewModel is created
-        loadAndPrepareCharacter()
+        initialLoadAndPrepareCharacter()
     }
 
-    private fun loadAndPrepareCharacter() {
-        // Your logic to pick the next character
-        // For now, let's assume it sets _currentCharacter
-        _currentCharacter.value = allCharacters.randomOrNull() // Or your specific logic
-
+    private fun initialLoadAndPrepareCharacter() {
+        _currentCharacter.value =
+            allCharacters.randomOrNull() // Or your specific logic for first char
         _currentCharacter.value?.let {
-            viewModelScope.launch {
-                _userDrawnPath.value = null
-                _guideAnimationProgress.snapTo(0f) // Reset guide animation
-                _practiceStep.value = PracticeStep.ANIMATING_GUIDE
-                _guideAnimationProgress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 1500, easing = LinearEasing) // Adjust duration
-                )
-                // After guide animation, move to user tracing
+            // Set initial state for animation, but don't run animateTo here
+            _userDrawnPath.value = null
+            viewModelScope.launch { _guideAnimationProgress.snapTo(0f) } // Snap can be done here
+            _practiceStep.value = PracticeStep.ANIMATING_GUIDE
+        }
+    }
+
+    // This will be called by the Composable
+    suspend fun executeGuideAnimation() {
+        if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE) { // Ensure we are in the correct step
+            _guideAnimationProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
+            )
+            // Check again, in case step changed during long animation
+            if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE) {
                 _practiceStep.value = PracticeStep.USER_TRACING_ON_GUIDE
             }
         }
     }
+
+//    private fun loadAndPrepareCharacter() {
+//        // Your logic to pick the next character
+//        // For now, let's assume it sets _currentCharacter
+//        _currentCharacter.value = allCharacters.randomOrNull() // Or your specific logic
+//
+//        _currentCharacter.value?.let {
+//            viewModelScope.launch {
+//                _userDrawnPath.value = null
+//                _guideAnimationProgress.snapTo(0f) // Reset guide animation
+//                _practiceStep.value = PracticeStep.ANIMATING_GUIDE
+//                _guideAnimationProgress.animateTo(
+//                    targetValue = 1f,
+//                    animationSpec = tween(
+//                        durationMillis = 1500,
+//                        easing = LinearEasing
+//                    ) // Adjust duration
+//                )
+//                // After guide animation, move to user tracing
+//                _practiceStep.value = PracticeStep.USER_TRACING_ON_GUIDE
+//            }
+//        }
+//    }
 
     fun onUserStrokeFinished(path: Path) {
         _userDrawnPath.value = path
@@ -117,9 +119,11 @@ class CharacterPracticeViewModel(
             PracticeStep.USER_TRACING_ON_GUIDE -> {
                 _practiceStep.value = PracticeStep.MORPHING_TRACE_TO_CORRECT
             }
+
             PracticeStep.USER_WRITING_BLANK -> {
                 _practiceStep.value = PracticeStep.MORPHING_WRITE_TO_CORRECT
             }
+
             else -> {} // Should not happen
         }
         // ML prediction can still happen here if you want
@@ -132,29 +136,43 @@ class CharacterPracticeViewModel(
             PracticeStep.MORPHING_TRACE_TO_CORRECT -> {
                 _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
             }
+
             PracticeStep.MORPHING_WRITE_TO_CORRECT -> {
                 _practiceStep.value = PracticeStep.AWAITING_NEXT_CHARACTER
             }
+
             else -> {}
         }
     }
 
-    fun advanceToNextStep() { // Called on "tap to advance" or button press
+    fun loadNextCharacterAndPrepareAnimation() {
+        _currentCharacter.value = allCharacters.randomOrNull() // Or your next character logic
+        _currentCharacter.value?.let {
+            _userDrawnPath.value = null
+            viewModelScope.launch { _guideAnimationProgress.snapTo(0f) } // Reset for next animation
+            _practiceStep.value = PracticeStep.ANIMATING_GUIDE
+            // The Composable's LaunchedEffect will pick up the new ANIMATING_GUIDE state
+            // and call executeGuideAnimation()
+        }
+    }
+
+    // In advanceToNextStep, when going from AWAITING_NEXT_CHARACTER to new char
+    fun advanceToNextStep() {
         viewModelScope.launch {
             when (_practiceStep.value) {
                 PracticeStep.AWAITING_BLANK_SLATE -> {
                     _userDrawnPath.value = null
-                    _clearCanvasSignal.emit(Unit) // Signal DrawingCanvas to clear
+                    _clearCanvasSignal.emit(Unit)
                     _practiceStep.value = PracticeStep.USER_WRITING_BLANK
                 }
+
                 PracticeStep.AWAITING_NEXT_CHARACTER -> {
-                    // Here you would check if lesson is complete or load next character
-                    // For now, just reload the same character flow for simplicity in demo
-                    // In a real app: show "Practice Complete" dialog from video or navigate
                     _userDrawnPath.value = null
                     _clearCanvasSignal.emit(Unit)
-                    loadAndPrepareCharacter() // Or load a genuinely new character
+                    // Instead of loadAndPrepareCharacter, call the one that just sets state
+                    loadNextCharacterAndPrepareAnimation()
                 }
+
                 else -> {}
             }
         }
@@ -174,11 +192,12 @@ class CharacterPracticeViewModel(
         }
     }
 
-    fun requestNextCharacter() { // For the "Next" button
+    // When "Next Char" button is pressed
+    fun requestNextCharacter() {
         viewModelScope.launch {
             _userDrawnPath.value = null
             _clearCanvasSignal.emit(Unit)
-            loadAndPrepareCharacter()
+            loadNextCharacterAndPrepareAnimation()
         }
     }
 

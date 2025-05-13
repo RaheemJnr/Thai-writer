@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -35,6 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingCanvas
 import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
 import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
@@ -230,7 +232,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun CharacterPracticeScreen(
     viewModel: CharacterPracticeViewModel = koinViewModel(), // or viewModel()
-    // navController: NavController // If used for back navigation
+    navController: NavController // If used for back navigation
 ) {
     val currentCharacter by viewModel.currentCharacter.collectAsState()
     val practiceStep by viewModel.practiceStep.collectAsState()
@@ -242,6 +244,12 @@ fun CharacterPracticeScreen(
     // Enabled only when user is supposed to draw and not during morphing/guide animation
     val drawingEnabled = practiceStep == PracticeStep.USER_TRACING_ON_GUIDE ||
             practiceStep == PracticeStep.USER_WRITING_BLANK
+
+    LaunchedEffect(practiceStep, currentCharacter) {
+        if (practiceStep == PracticeStep.ANIMATING_GUIDE && currentCharacter != null) {
+            viewModel.executeGuideAnimation()
+        }
+    }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
@@ -280,18 +288,46 @@ fun CharacterPracticeScreen(
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .padding(vertical = 8.dp) // Reduced padding
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)) // Theme color
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(8.dp)
+                    ) // Theme color
             ) {
                 // Grid lines (like in the video - simplified)
                 Canvas(Modifier.fillMaxSize()) {
                     val thirdHeight = size.height / 3
                     val thirdWidth = size.width / 3
-                    drawLine(Color.Gray, Offset(0f, thirdHeight), Offset(size.width, thirdHeight), alpha = 0.5f)
-                    drawLine(Color.Gray, Offset(0f, 2 * thirdHeight), Offset(size.width, 2 * thirdHeight), alpha = 0.5f)
-                    drawLine(Color.Gray, Offset(thirdWidth, 0f), Offset(thirdWidth, size.height), alpha = 0.5f)
-                    drawLine(Color.Gray, Offset(2 * thirdWidth, 0f), Offset(2 * thirdWidth, size.height), alpha = 0.5f)
-                    drawLine(Color.Gray, Offset(0f, size.height/2), Offset(size.width, size.height/2),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f,10f)), alpha = 0.5f)
+                    drawLine(
+                        Color.Gray,
+                        Offset(0f, thirdHeight),
+                        Offset(size.width, thirdHeight),
+                        alpha = 0.5f
+                    )
+                    drawLine(
+                        Color.Gray,
+                        Offset(0f, 2 * thirdHeight),
+                        Offset(size.width, 2 * thirdHeight),
+                        alpha = 0.5f
+                    )
+                    drawLine(
+                        Color.Gray,
+                        Offset(thirdWidth, 0f),
+                        Offset(thirdWidth, size.height),
+                        alpha = 0.5f
+                    )
+                    drawLine(
+                        Color.Gray,
+                        Offset(2 * thirdWidth, 0f),
+                        Offset(2 * thirdWidth, size.height),
+                        alpha = 0.5f
+                    )
+                    drawLine(
+                        Color.Gray,
+                        Offset(0f, size.height / 2),
+                        Offset(size.width, size.height / 2),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)),
+                        alpha = 0.5f
+                    )
 
                 }
 
@@ -349,7 +385,9 @@ fun CharacterPracticeScreen(
                     PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next" // Or "Practice Complete! Tap to continue"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp)
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 16.dp)
             )
 
             Spacer(Modifier.weight(1f))
@@ -373,12 +411,26 @@ fun CharacterPracticeScreen(
 
             // Icons (as in video) - Placeholder for functionality
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Icon(Icons.Default.Edit, contentDescription = "Practice Mode", tint = MaterialTheme.colorScheme.onSurface)
-                Icon(Icons.Default.Person, contentDescription = "Pronunciation", tint = MaterialTheme.colorScheme.onSurface)
-                Icon(Icons.Default.FavoriteBorder, contentDescription = "Toggle Guide (if applicable)", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = "Practice Mode",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = "Pronunciation",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+                Icon(
+                    Icons.Default.FavoriteBorder,
+                    contentDescription = "Toggle Guide (if applicable)",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
 
