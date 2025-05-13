@@ -170,6 +170,7 @@ fun MorphOverlay(
     perfectSvgData: String?, // Changed from perfectSvg to perfectSvgData
     durationMs: Int = 800,   // Slightly longer for better visual
     modifier: Modifier = Modifier,
+    marginToApply: Float = 0.25f, // Consistent margin
     onFinished: () -> Unit
 ) {
     if (perfectSvgData.isNullOrEmpty()) {
@@ -201,23 +202,42 @@ fun MorphOverlay(
 
 
     Canvas(modifier) {
-        val strokePx = 0.06f * min(size.width, size.height)
+        val strokePx = 0.07f * min(size.width, size.height)
 
 
-        val scale = min(
-            size.width / r.width(),
-            size.height / r.height()
-        ) * 0.85f // Adjusted margin slightly
-        val dx = (size.width - r.width() * scale) / 2f - r.left * scale
-        val dy = (size.height - r.height() * scale) / 2f - r.top * scale
-        val m = android.graphics.Matrix().apply {
-            postScale(scale, scale)
-            postTranslate(dx, dy)
+        // Consistent Scaling with StrokeGuide
+        val r = android.graphics.RectF().also { targetPath.computeBounds(it, true) }
+        val padX = size.width * marginToApply
+        val padY = size.height * marginToApply
+        val availW = size.width - padX * 2
+        val availH = size.height - padY * 2
+
+        if (r.width() <= 0 || r.height() <= 0 || availW <= 0 || availH <= 0) {
+            // Handle invalid bounds or available space, perhaps by calling onFinished early
+            onFinished()
+            return@Canvas
         }
 
-        val perfectCanvasPath = android.graphics.Path().apply {
-            set(targetPath); transform(m)
-        }
+
+        val scaleFactor = 0.9f // Consistent additional factor
+        val finalScale = min(availW / r.width(), availH / r.height()) * scaleFactor
+
+
+        val scaledWidth = r.width() * finalScale
+        val scaledHeight = r.height() * finalScale
+        val finalDx = padX + (availW - scaledWidth) / 2f - (r.left * finalScale)
+        val finalDy = padY + (availH - scaledHeight) / 2f - (r.top * finalScale)
+
+        val m =
+            android.graphics.Matrix().apply {
+                postScale(finalScale, finalScale)
+                postTranslate(finalDx, finalDy)
+            }
+
+        val perfectCanvasPath =
+            android.graphics.Path().apply {
+                set(targetPath); transform(m)
+            }
 
 
         // User path (fading out)

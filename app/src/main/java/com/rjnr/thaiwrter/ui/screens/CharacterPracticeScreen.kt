@@ -237,6 +237,7 @@ fun CharacterPracticeScreen(
     val currentCharacter by viewModel.currentCharacter.collectAsState()
     val practiceStep by viewModel.practiceStep.collectAsState()
     val guideAnimationProgress = viewModel.guideAnimationProgress // Direct float
+    val userHasStartedTracing by viewModel.userHasStartedTracing.collectAsState() // Collect new state
     val userDrawnPath by viewModel.userDrawnPath.collectAsState()
 
     // For the "tap to advance" functionality
@@ -328,16 +329,16 @@ fun CharacterPracticeScreen(
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)),
                         alpha = 0.5f
                     )
-
                 }
 
                 // Stroke Guide
                 if (practiceStep == PracticeStep.ANIMATING_GUIDE || practiceStep == PracticeStep.USER_TRACING_ON_GUIDE) {
                     StrokeGuide(
-                        svgPathData = currentCharacter?.svgPathData, // Ensure ThaiCharacter has this
+                        svgPathData = currentCharacter?.svgPathData,
+                        practiceStep = practiceStep, // Pass the practice step
                         animationProgress = guideAnimationProgress,
-                        isTracingMode = practiceStep == PracticeStep.USER_TRACING_ON_GUIDE,
-                        marginRatio = 0.1f, // Adjust as needed
+                        userHasStartedTracing = userHasStartedTracing, // Pass this new state
+                        marginRatio = 0.25f, // Adjusted for issue 4
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -347,6 +348,7 @@ fun CharacterPracticeScreen(
                     modifier = Modifier.fillMaxSize(),
                     clearSignal = viewModel.clearCanvasSignal,
                     onStrokeFinished = viewModel::onUserStrokeFinished,
+                    onDragStartAction = viewModel::userStartedDrawingOnGuide, // Connect to ViewModel
                     enabled = drawingEnabled
                 )
 
@@ -365,9 +367,10 @@ fun CharacterPracticeScreen(
                     StrokeGuide( // Re-use StrokeGuide to draw the static perfect character
                         svgPathData = currentCharacter?.svgPathData,
                         animationProgress = 1f, // Fully drawn
-                        isTracingMode = false,  // Not for tracing, just display
                         color = Color.Green,    // Green color
                         marginRatio = 0.1f,
+                        practiceStep = practiceStep, // Pass the practice step
+                        userHasStartedTracing = userHasStartedTracing, // Pass this new state
                         modifier = Modifier.fillMaxSize()
                     )
                 }

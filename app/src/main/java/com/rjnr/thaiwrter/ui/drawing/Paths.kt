@@ -4,15 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.RectF
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
+import com.rjnr.thaiwrter.ui.viewmodel.PracticeStep
 import kotlin.math.max
 import kotlin.math.min
 import android.graphics.Canvas as AndroidCanvas
@@ -183,11 +177,13 @@ fun android.graphics.Path.toCompose() = this.asComposePath()
 fun StrokeGuide(
     svgPathData: String?,
     animationProgress: Float, // 0f to 1f for drawing animation
-    isTracingMode: Boolean,   // True if user should be tracing over a static guide
-    marginRatio: Float = 0.15f,
+    practiceStep: PracticeStep,     // Pass the current practice step
+    userHasStartedTracing: Boolean, // From ViewModel
+    marginRatio: Float = 0.25f,
     color: Color = Color(0xFF5B4CE0), // Purple-ish
-    staticGuideColor: Color = Color.DarkGray.copy(alpha = 0.5f), // Color for static guide
+    staticGuideColor: Color = Color.DarkGray.copy(alpha = 0.8f), // Color for static guide
     modifier: Modifier = Modifier
+
 ) {
     if (svgPathData.isNullOrEmpty()) {
         // Optionally draw a placeholder or nothing
@@ -205,49 +201,111 @@ fun StrokeGuide(
     }
 
     val pm = remember { android.graphics.PathMeasure() }
-    val pathScaledAndTransformed = remember { android.graphics.Path() } // For the final display path
+    val pathScaledAndTransformed =
+        remember { android.graphics.Path() } // For the final display path
     val animatedSegment = remember { android.graphics.Path() }
 
+//    Canvas(modifier) {
+//        val padX = size.width * marginRatio
+//        val padY = size.height * marginRatio
+//        val availW = size.width - padX * 2
+//        val availH = size.height - padY * 2
+//
+//        val scale = min(availW / rawBounds.width(), availH / rawBounds.height())
+//        val dx = padX + (availW - rawBounds.width() * scale) / 2f - rawBounds.left * scale
+//        val dy = padY + (availH - rawBounds.height() * scale) / 2f - rawBounds.top * scale
+//
+//        val m = android.graphics.Matrix().apply {
+//            postScale(scale, scale)
+//            postTranslate(dx, dy)
+//        }
+//
+//        pathScaledAndTransformed.reset() // Clear before setting
+//        pathScaledAndTransformed.set(rawPath)
+//        pathScaledAndTransformed.transform(m)
+//
+//        val strokePx = 0.06f * min(size.width, size.height) // Consistent stroke width
+//
+//        // Animate drawing the guide
+//        if (animationProgress < 1.0f && !isTracingMode) { // Only animate if not yet fully drawn and not in static tracing mode
+//            pm.setPath(pathScaledAndTransformed, false)
+//            animatedSegment.reset()
+//            pm.getSegment(0f, pm.length * animationProgress, animatedSegment, true)
+//            drawPath(
+//                animatedSegment.asComposePath(),
+//                color = color,
+//                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+//            )
+//        }
+//
+//        // Show static guide if animation is complete OR if in tracing mode (even if animation was quick)
+//        if (animationProgress >= 1.0f || isTracingMode) {
+//            drawPath(
+//                pathScaledAndTransformed.asComposePath(),
+//                color = if (isTracingMode) staticGuideColor else color, // Use a dimmer color for static tracing guide
+//                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+//            )
+//        }
+//    }
     Canvas(modifier) {
-        val padX = size.width * marginRatio
+        val padX = size.width * marginRatio // Use marginToApply for padding
         val padY = size.height * marginRatio
         val availW = size.width - padX * 2
         val availH = size.height - padY * 2
 
-        val scale = min(availW / rawBounds.width(), availH / rawBounds.height())
-        val dx = padX + (availW - rawBounds.width() * scale) / 2f - rawBounds.left * scale
-        val dy = padY + (availH - rawBounds.height() * scale) / 2f - rawBounds.top * scale
+        if (rawBounds.width() <= 0 || rawBounds.height() <= 0 || availW <= 0 || availH <= 0) return@Canvas
 
-        val m = android.graphics.Matrix().apply {
-            postScale(scale, scale)
-            postTranslate(dx, dy)
+
+        val scaleFactor = 0.9f // Additional factor to ensure it doesn't touch edges after padding
+        val finalScale = min(availW / rawBounds.width(), availH / rawBounds.height()) * scaleFactor
+
+
+        val scaledWidth = rawBounds.width() * finalScale
+        val scaledHeight = rawBounds.height() * finalScale
+
+        // Calculate translation to center the scaled path within the available padded area
+        val finalDx = padX + (availW - scaledWidth) / 2f - (rawBounds.left * finalScale)
+        val finalDy = padY + (availH - scaledHeight) / 2f - (rawBounds.top * finalScale)
+
+
+        val finalM = android.graphics.Matrix().apply {
+            postScale(finalScale, finalScale)
+            postTranslate(finalDx, finalDy)
         }
 
-        pathScaledAndTransformed.reset() // Clear before setting
+
+        pathScaledAndTransformed.reset()
         pathScaledAndTransformed.set(rawPath)
-        pathScaledAndTransformed.transform(m)
+        pathScaledAndTransformed.transform(finalM)
 
-        val strokePx = 0.06f * min(size.width, size.height) // Consistent stroke width
+        val strokePx = 0.07f * min(size.width, size.height) // Slightly thicker for visibility
 
-        // Animate drawing the guide
-        if (animationProgress < 1.0f && !isTracingMode) { // Only animate if not yet fully drawn and not in static tracing mode
-            pm.setPath(pathScaledAndTransformed, false)
-            animatedSegment.reset()
-            pm.getSegment(0f, pm.length * animationProgress, animatedSegment, true)
-            drawPath(
-                animatedSegment.asComposePath(),
-                color = color,
-                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-            )
-        }
-
-        // Show static guide if animation is complete OR if in tracing mode (even if animation was quick)
-        if (animationProgress >= 1.0f || isTracingMode) {
-            drawPath(
-                pathScaledAndTransformed.asComposePath(),
-                color = if (isTracingMode) staticGuideColor else color, // Use a dimmer color for static tracing guide
-                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-            )
+        when {
+            // Looping/Initial Guide Animation
+            practiceStep == PracticeStep.ANIMATING_GUIDE && !userHasStartedTracing -> {
+                pm.setPath(pathScaledAndTransformed, false)
+                animatedSegment.reset()
+                if (pm.length > 0) { // Ensure path measure has a valid path
+                    pm.getSegment(0f, pm.length * animationProgress, animatedSegment, true)
+                    drawPath(
+                        animatedSegment.asComposePath(),
+                        color = color,
+                        style = Stroke(
+                            width = strokePx,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round
+                        )
+                    )
+                }
+            }
+            // Static Guide for User Tracing (after animation or if user started tracing)
+            practiceStep == PracticeStep.USER_TRACING_ON_GUIDE || (practiceStep == PracticeStep.ANIMATING_GUIDE && userHasStartedTracing) -> {
+                drawPath(
+                    pathScaledAndTransformed.asComposePath(),
+                    color = staticGuideColor,
+                    style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                )
+            }
         }
     }
 }

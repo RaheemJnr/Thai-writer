@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -210,9 +209,9 @@ import kotlin.math.min
 @Composable
 fun DrawingCanvas(
     modifier: Modifier = Modifier,
-    // shouldClear: Boolean = false, // Replaced by clearSignal
     clearSignal: SharedFlow<Unit>,
     onStrokeFinished: (Path) -> Unit,
+    onDragStartAction: () -> Unit, // New callback for when dragging starts
     enabled: Boolean = true // To disable drawing during morphing etc.
 ) {
     var currentPath by remember { mutableStateOf(Path()) }
@@ -233,6 +232,7 @@ fun DrawingCanvas(
                 if (enabled) {
                     detectDragGestures(
                         onDragStart = { off ->
+                            onDragStartAction() // New callback
                             currentPath = Path().apply { moveTo(off.x, off.y) }
                         },
                         onDragEnd = {
@@ -242,14 +242,16 @@ fun DrawingCanvas(
                         },
                         onDrag = { change, _ ->
                             change.consume()
+                            val newPoint = change.position
                             // Make sure currentPath is not reset mid-drag if onDragEnd clears it
-                            currentPath.lineTo(change.position.x, change.position.y)
+                           // currentPath.lineTo(change.position.x, change.position.y)
+                            currentPath = currentPath.apply { lineTo(newPoint.x, newPoint.y) }
                         }
                     )
                 }
             }
     ) {
-        val strokePx = 0.06f * min(size.width, size.height)
+        val strokePx = 0.07f * min(size.width, size.height)
         val style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
         // finishedPaths.forEach { drawPath(path = it, color = Color.Black, style = style) }
         drawPath(path = currentPath, color = Color.Black, style = style)
