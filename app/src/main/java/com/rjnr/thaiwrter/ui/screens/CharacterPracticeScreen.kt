@@ -243,12 +243,14 @@ fun CharacterPracticeScreen(
     // For the "tap to advance" functionality
     val interactionSource = remember { MutableInteractionSource() }
     // Enabled only when user is supposed to draw and not during morphing/guide animation
-    val drawingEnabled = practiceStep == PracticeStep.USER_TRACING_ON_GUIDE ||
+    val drawingEnabled = practiceStep == PracticeStep.GUIDE_AND_TRACE ||
             practiceStep == PracticeStep.USER_WRITING_BLANK
 
-    LaunchedEffect(practiceStep, currentCharacter) {
-        if (practiceStep == PracticeStep.ANIMATING_GUIDE && currentCharacter != null) {
-            viewModel.executeGuideAnimation()
+    // Trigger the guide animation loop
+    LaunchedEffect(practiceStep, currentCharacter, userHasStartedTracing) {
+        // Add userHasStartedTracing key
+        if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null && !userHasStartedTracing) {
+            viewModel.executeGuideAnimationLoop()
         }
     }
 
@@ -286,8 +288,9 @@ fun CharacterPracticeScreen(
             // Drawing Area
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.9f)
                     .aspectRatio(1f)
+                    .align(Alignment.CenterHorizontally)
                     .padding(vertical = 8.dp) // Reduced padding
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant,
@@ -332,13 +335,22 @@ fun CharacterPracticeScreen(
                 }
 
                 // Stroke Guide
-                if (practiceStep == PracticeStep.ANIMATING_GUIDE || practiceStep == PracticeStep.USER_TRACING_ON_GUIDE) {
+//                if (practiceStep == PracticeStep.ANIMATING_GUIDE || practiceStep == PracticeStep.USER_TRACING_ON_GUIDE) {
+//                    StrokeGuide(
+//                        svgPathData = currentCharacter?.svgPathData,
+//                        practiceStep = practiceStep, // Pass the practice step
+//                        animationProgress = guideAnimationProgress,
+//                        userHasStartedTracing = userHasStartedTracing, // Pass this new state
+//                        marginRatio = 0.25f, // Adjusted for issue 4
+//                        modifier = Modifier.fillMaxSize()
+//                    )
+//                }
+                if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
                     StrokeGuide(
                         svgPathData = currentCharacter?.svgPathData,
-                        practiceStep = practiceStep, // Pass the practice step
                         animationProgress = guideAnimationProgress,
-                        userHasStartedTracing = userHasStartedTracing, // Pass this new state
-                        marginRatio = 0.25f, // Adjusted for issue 4
+                        userHasStartedTracing = userHasStartedTracing,
+                        marginToApply = 0.2f, // Reduced margin inside the already padded canvas box
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -348,49 +360,59 @@ fun CharacterPracticeScreen(
                     modifier = Modifier.fillMaxSize(),
                     clearSignal = viewModel.clearCanvasSignal,
                     onStrokeFinished = viewModel::onUserStrokeFinished,
-                    onDragStartAction = viewModel::userStartedDrawingOnGuide, // Connect to ViewModel
+                    onDragStartAction = viewModel::userStartedTracing,// Connect to ViewModel
                     enabled = drawingEnabled
                 )
 
                 // Morph Overlay
+                // Morph Overlay or Static Green Correct Character
                 if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && userDrawnPath != null) {
                     MorphOverlay(
                         userPath = userDrawnPath!!,
-                        perfectSvgData = currentCharacter?.svgPathData, // Ensure ThaiCharacter has this
+                        perfectSvgData = currentCharacter?.svgPathData,
                         onFinished = viewModel::onMorphAnimationFinished,
+                        marginToApply = 0.2f, // Consistent margin
                         modifier = Modifier.fillMaxSize()
                     )
-                }
-                // If it's awaiting next step after morph, show the green character statically
-                else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.svgPathData != null) {
-                    // Draw the perfect character statically in green
-                    StrokeGuide( // Re-use StrokeGuide to draw the static perfect character
+                } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.svgPathData != null) {
+                    // Re-use StrokeGuide to draw the static perfect character in green
+                    StrokeGuide(
                         svgPathData = currentCharacter?.svgPathData,
                         animationProgress = 1f, // Fully drawn
-                        color = Color.Green,    // Green color
-                        marginRatio = 0.1f,
-                        practiceStep = practiceStep, // Pass the practice step
-                        userHasStartedTracing = userHasStartedTracing, // Pass this new state
+                        userHasStartedTracing = true, // Treat as if user interacted for static display
+                        staticGuideColor = Color.Green.copy(alpha = 0.0f), // Make underlying static guide invisible
+                        animatedSegmentColor = Color.Green, // This will be the color used for the "segment"
+                        finalStaticSegmentColor = Color.Green, // Ensure it's green
+                        marginToApply = 0.2f,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
 
+
             // Instruction Text
             Text(
                 text = when (practiceStep) {
                     PracticeStep.INITIAL -> "Loading..."
-                    PracticeStep.ANIMATING_GUIDE -> "Watch how to write"
-                    PracticeStep.USER_TRACING_ON_GUIDE -> "Trace the character"
-                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> "" // Morph handles visual
+                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace the character" else "Finish tracing"
+                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> ""
                     PracticeStep.AWAITING_BLANK_SLATE -> "Tap to try from memory"
                     PracticeStep.USER_WRITING_BLANK -> "Write the character"
-                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next" // Or "Practice Complete! Tap to continue"
+                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next"
                 },
                 style = MaterialTheme.typography.titleMedium,
+                color = Color.White, // White text for blue background
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(top = 16.dp)
+                    .padding(top = 24.dp) // More space for instruction
+                    .clickable( // Make "tap to advance" apply here too
+                        interactionSource = interactionSource,
+                        indication = null,
+                        enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
+                                practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
+                    ) {
+                        viewModel.advanceToNextStep()
+                    }
             )
 
             Spacer(Modifier.weight(1f))

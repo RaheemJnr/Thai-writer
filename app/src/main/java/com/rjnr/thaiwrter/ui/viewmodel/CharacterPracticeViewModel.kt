@@ -24,8 +24,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // Add to your ViewModel or a separate file
 enum class PracticeStep {
     INITIAL,                    // Initial state, character loaded
-    ANIMATING_GUIDE,            // The purple guide is drawing itself
-    USER_TRACING_ON_GUIDE,      // Guide is static, user is drawing on top
+    GUIDE_AND_TRACE,            // NEW: Combines guide animation and user tracing
     MORPHING_TRACE_TO_CORRECT,  // User's trace morphs to green correct version
     AWAITING_BLANK_SLATE,       // Green character shown, tap to proceed to blank slate
     USER_WRITING_BLANK,         // Blank canvas, user draws from memory
@@ -72,123 +71,101 @@ class CharacterPracticeViewModel(
         initialLoadAndPrepareCharacter()
     }
 
-    private fun initialLoadAndPrepareCharacter() {
-        _currentCharacter.value =
-            allCharacters.randomOrNull() // Or your specific logic for first char
-        _currentCharacter.value?.let {
-            // Set initial state for animation, but don't run animateTo here
-            _userDrawnPath.value = null
-            viewModelScope.launch { _guideAnimationProgress.snapTo(0f) } // Snap can be done here
-            _practiceStep.value = PracticeStep.ANIMATING_GUIDE
-        }
+    private fun setupForNewCharacter() {
+        _userDrawnPath.value = null
         _userHasStartedTracing.value = false
+        viewModelScope.launch { _guideAnimationProgress.snapTo(0f) }
+        _practiceStep.value = PracticeStep.GUIDE_AND_TRACE // Go directly to combined step
     }
 
+    private fun initialLoadAndPrepareCharacter() {
+        _currentCharacter.value = allCharacters.randomOrNull()
+        _currentCharacter.value?.let {
+            setupForNewCharacter()
+        }
+    }
+
+    fun loadNextCharacterAndPrepareAnimation() {
+        _currentCharacter.value = allCharacters.randomOrNull()
+        _currentCharacter.value?.let {
+            setupForNewCharacter()
+        }
+    }
+
+
     // This will be called by the Composable
-//    suspend fun executeGuideAnimation() {
-//        if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE) { // Ensure we are in the correct step
-//            _guideAnimationProgress.animateTo(
-//                targetValue = 1f,
-//                animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
-//            )
-//            // Check again, in case step changed during long animation
-//            if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE) {
-//                _practiceStep.value = PracticeStep.USER_TRACING_ON_GUIDE
-//            }
-//        }
-//    }
-    suspend fun executeGuideAnimation() {
+
+    // This will be called by the Composable's LaunchedEffect
+    suspend fun executeGuideAnimationLoop() {
         // Ensure we are in the correct step and character is loaded
-        if (_practiceStep.value != PracticeStep.ANIMATING_GUIDE || currentCharacter.value == null) {
-            // If not in animating guide step, but should be (e.g., character just loaded), set it.
-            if (currentCharacter.value != null && _practiceStep.value != PracticeStep.USER_TRACING_ON_GUIDE && _practiceStep.value != PracticeStep.USER_WRITING_BLANK){ // Avoid resetting if already tracing/writing
-                _practiceStep.value = PracticeStep.ANIMATING_GUIDE
-            } else {
-                return // Not the right time or state for guide animation
-            }
+        if (_practiceStep.value != PracticeStep.GUIDE_AND_TRACE || currentCharacter.value == null) {
+            return
         }
 
-        _userHasStartedTracing.value = false // Reset for the new character/animation cycle
-
         // Loop the guide animation until user starts tracing or the step changes
-        // Check if the coroutine is still active
-        while (isActive &&  _practiceStep.value == PracticeStep.ANIMATING_GUIDE &&
-            !_userHasStartedTracing.value &&
-            currentCharacter.value != null) {
+        while (isActive && // Check if the coroutine is still active
+            _practiceStep.value == PracticeStep.GUIDE_AND_TRACE &&
+            !_userHasStartedTracing.value && // Stop looping if user starts tracing
+            currentCharacter.value != null
+        ) {
 
-            _guideAnimationProgress.snapTo(0f)
+            _guideAnimationProgress.snapTo(0f) // Reset for loop
             try {
                 _guideAnimationProgress.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
+                    animationSpec = tween(
+                        durationMillis = 1500,
+                        easing = LinearEasing
+                    ) // Your animation speed
                 )
-                // If animation completes and user hasn't started tracing and still in ANIMATING_GUIDE step
-                if (isActive && !_userHasStartedTracing.value && _practiceStep.value == PracticeStep.ANIMATING_GUIDE) {
-                    delay(700) // Pause before restarting loop
+                // If animation completes and user hasn't started tracing and still in GUIDE_AND_TRACE step
+                if (isActive && !_userHasStartedTracing.value && _practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {
+                    delay(500) // Pause before restarting loop
                 }
             } catch (e: CancellationException) {
-                // Animation was cancelled (e.g., scope closed or user interacted)
-                // If user started tracing, this is expected.
-                if (_userHasStartedTracing.value && _practiceStep.value == PracticeStep.ANIMATING_GUIDE) {
-                    _practiceStep.value = PracticeStep.USER_TRACING_ON_GUIDE
-                    _guideAnimationProgress.snapTo(1f) // Ensure guide is fully drawn statically
-                }
+                // Animation was cancelled (e.g., scope closed or user interacted via _userHasStartedTracing)
                 break // Exit loop on cancellation
             }
         }
 
-        // If loop broke for reasons other than cancellation (e.g., _userHasStartedTracing became true
-        // or step changed by another part of the app)
-        if (isActive && _practiceStep.value == PracticeStep.ANIMATING_GUIDE && currentCharacter.value != null) {
-            // If user hasn't started tracing, but loop exited (e.g. step changed externally),
-            // then transition to tracing if appropriate.
-            // However, if _userHasStartedTracing is true, it means onUserDrawingStartedOnGuide already handled the transition.
-            if (!_userHasStartedTracing.value) {
-                _practiceStep.value = PracticeStep.USER_TRACING_ON_GUIDE
-                _guideAnimationProgress.snapTo(1f) // Ensure guide is fully drawn statically
-            }
+        // If loop broke because user started tracing, ensure progress is at 1f for static guide
+        if (isActive && _userHasStartedTracing.value && _practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {
+            _guideAnimationProgress.snapTo(1f)
         }
     }
 
-    // Call this from onDragStart in DrawingCanvas IF practiceStep is ANIMATING_GUIDE or USER_TRACING_ON_GUIDE
-    fun userStartedDrawingOnGuide() {
-        if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE || _practiceStep.value == PracticeStep.USER_TRACING_ON_GUIDE) {
+    // Called from onDragStart in DrawingCanvas
+    fun userStartedTracing() {
+        if (_practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {
             _userHasStartedTracing.value = true
-            // If animation was ongoing, it will be cancelled by the change in _userHasStartedTracing
-            // and executeGuideAnimation's loop condition.
-            // Then, ensure we are in USER_TRACING_ON_GUIDE state.
-            if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE) {
-                _practiceStep.value = PracticeStep.USER_TRACING_ON_GUIDE
-                viewModelScope.launch { // Snap outside the animation coroutine if it was cancelled
-                    _guideAnimationProgress.snapTo(1f)
-                }
+            // The animation loop in executeGuideAnimationLoop will see this flag and stop.
+            // We might want to immediately snap the animation to its end if it was mid-animation.
+            viewModelScope.launch {
+                _guideAnimationProgress.stop() // Stop any ongoing animation
+                _guideAnimationProgress.snapTo(1f) // Ensure the animated part is fully "drawn" if we want to show it statically
             }
         }
     }
 
     fun onUserStrokeFinished(path: Path) {
         _userDrawnPath.value = path
-        // If user finishes a stroke, they've definitely interacted
-        if (_practiceStep.value == PracticeStep.ANIMATING_GUIDE || _practiceStep.value == PracticeStep.USER_TRACING_ON_GUIDE) {
-            _userHasStartedTracing.value = true
-        }
-
-        viewModelScope.launch { _clearCanvasSignal.emit(Unit) } // Clear DrawingCanvas immediately (for issue 3)
+        viewModelScope.launch { _clearCanvasSignal.emit(Unit) }
 
         when (_practiceStep.value) {
-            // If it was still animating guide when stroke finished (fast user)
-            PracticeStep.ANIMATING_GUIDE, PracticeStep.USER_TRACING_ON_GUIDE -> {
+            PracticeStep.GUIDE_AND_TRACE -> {
+                _userHasStartedTracing.value = true // Ensure this is set
                 _practiceStep.value = PracticeStep.MORPHING_TRACE_TO_CORRECT
             }
+
             PracticeStep.USER_WRITING_BLANK -> {
                 _practiceStep.value = PracticeStep.MORPHING_WRITE_TO_CORRECT
             }
+
             else -> {}
         }
     }
 
     fun onMorphAnimationFinished() {
-        // This is called by MorphOverlay's onFinished
         when (_practiceStep.value) {
             PracticeStep.MORPHING_TRACE_TO_CORRECT -> {
                 _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
@@ -202,18 +179,6 @@ class CharacterPracticeViewModel(
         }
     }
 
-    fun loadNextCharacterAndPrepareAnimation() {
-        _currentCharacter.value = allCharacters.randomOrNull() // Or your next character logic
-        _currentCharacter.value?.let {
-            _userDrawnPath.value = null
-            viewModelScope.launch { _guideAnimationProgress.snapTo(0f) } // Reset for next animation
-            _practiceStep.value = PracticeStep.ANIMATING_GUIDE
-            _userHasStartedTracing.value = false
-            // The Composable's LaunchedEffect will pick up the new ANIMATING_GUIDE state
-            // and call executeGuideAnimation()
-        }
-    }
-
     // In advanceToNextStep, when going from AWAITING_NEXT_CHARACTER to new char
     fun advanceToNextStep() {
         viewModelScope.launch {
@@ -223,14 +188,11 @@ class CharacterPracticeViewModel(
                     _clearCanvasSignal.emit(Unit)
                     _practiceStep.value = PracticeStep.USER_WRITING_BLANK
                 }
-
                 PracticeStep.AWAITING_NEXT_CHARACTER -> {
                     _userDrawnPath.value = null
                     _clearCanvasSignal.emit(Unit)
-                    // Instead of loadAndPrepareCharacter, call the one that just sets state
                     loadNextCharacterAndPrepareAnimation()
                 }
-
                 else -> {}
             }
         }
