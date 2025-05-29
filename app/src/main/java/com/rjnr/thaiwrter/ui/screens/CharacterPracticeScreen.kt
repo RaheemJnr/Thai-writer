@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingCanvas
+import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
+import com.rjnr.thaiwrter.ui.drawing.OptimizedDrawingCanvas
 import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
 import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
 import com.rjnr.thaiwrter.ui.viewmodel.PracticeStep
@@ -356,12 +358,14 @@ fun CharacterPracticeScreen(
                 }
 
                 // User Drawing Canvas
-                DrawingCanvas(
+                OptimizedDrawingCanvas(
                     modifier = Modifier.fillMaxSize(),
                     clearSignal = viewModel.clearCanvasSignal,
                     onStrokeFinished = viewModel::onUserStrokeFinished,
-                    onDragStartAction = viewModel::userStartedTracing,// Connect to ViewModel
-                    enabled = drawingEnabled
+                    onDragStartAction = viewModel::userStartedTracing,
+                    enabled = drawingEnabled,
+                    strokeColor = Color.Black,
+                    strokeWidthRatio = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO
                 )
 
                 // Morph Overlay
