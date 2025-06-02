@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
@@ -202,7 +203,7 @@ fun MorphOverlay(
 
 
     Canvas(modifier) {
-        val strokePx = 0.07f * min(size.width, size.height)
+        val strokePx = DrawingConfig.getStrokeWidth(min(size.width, size.height)) // Use config instead of hardcoded
 
 
         // Consistent Scaling with StrokeGuide

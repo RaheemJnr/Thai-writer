@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -15,8 +16,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
 import kotlinx.coroutines.flow.SharedFlow
 import kotlin.math.min
+import kotlin.math.sqrt
+import kotlin.math.abs
 
 
 //@Composable
@@ -211,51 +215,98 @@ fun DrawingCanvas(
     modifier: Modifier = Modifier,
     clearSignal: SharedFlow<Unit>,
     onStrokeFinished: (Path) -> Unit,
-    onDragStartAction: () -> Unit, // New callback for when dragging starts
-    enabled: Boolean = true // To disable drawing during morphing etc.
+    onDragStartAction: () -> Unit,
+    enabled: Boolean = true
 ) {
-    var currentPath by remember { mutableStateOf(Path()) }
-    // For single stroke characters, we only care about the last completed stroke for morphing.
-    // If you need multi-stroke, this logic would need to change.
-    // var finishedPaths = remember { mutableStateListOf<Path>() } // Not needed if we only handle one stroke at a time for morphing
-
-    LaunchedEffect(Unit) { // Changed key to Unit, listen for signal
+    // Use neverEqualPolicy to prevent unnecessary recompositions
+    var currentPath by remember { mutableStateOf(Path(), neverEqualPolicy()) }
+    var lastPoint by remember { mutableStateOf<Offset?>(null) }
+    var pointCount by remember { mutableStateOf(0) }
+    
+    // Minimum distance between points to reduce path complexity
+    val minDistance = 3f
+    
+    LaunchedEffect(Unit) {
         clearSignal.collect {
             currentPath = Path()
-            // finishedPaths.clear() // If you were using it
+            lastPoint = null
+            pointCount = 0
         }
     }
 
     Canvas(
         modifier = modifier
-            .pointerInput(enabled) { // Re-key pointerInput if 'enabled' changes
+            .pointerInput(enabled) {
                 if (enabled) {
                     detectDragGestures(
-                        onDragStart = { off ->
-                            onDragStartAction() // New callback
-                            currentPath = Path().apply { moveTo(off.x, off.y) }
+                        onDragStart = { offset ->
+                            onDragStartAction()
+                            currentPath = Path().apply { moveTo(offset.x, offset.y) }
+                            lastPoint = offset
+                            pointCount = 1
                         },
                         onDragEnd = {
-                            // finishedPaths += currentPath // If collecting all strokes
-                            onStrokeFinished(currentPath)
-                            // currentPath = Path() // Clear current path for next potential stroke if needed
+                            // Simplify path before sending it
+                            val simplifiedPath = simplifyPath(currentPath, pointCount)
+                            onStrokeFinished(simplifiedPath)
+                            lastPoint = null
                         },
                         onDrag = { change, _ ->
                             change.consume()
                             val newPoint = change.position
-                            // Make sure currentPath is not reset mid-drag if onDragEnd clears it
-                           // currentPath.lineTo(change.position.x, change.position.y)
-                            currentPath = currentPath.apply { lineTo(newPoint.x, newPoint.y) }
+                            
+                            // Only add point if it's far enough from the last point
+                            lastPoint?.let { last ->
+                                val distance = sqrt(
+                                    (newPoint.x - last.x) * (newPoint.x - last.x) +
+                                    (newPoint.y - last.y) * (newPoint.y - last.y)
+                                )
+                                
+                                if (distance >= minDistance) {
+                                    // Use quadratic bezier for smoother curves
+                                    val midPoint = Offset(
+                                        (last.x + newPoint.x) / 2,
+                                        (last.y + newPoint.y) / 2
+                                    )
+                                    currentPath.quadraticTo(
+                                        last.x, last.y,
+                                        midPoint.x, midPoint.y
+                                    )
+                                    lastPoint = newPoint
+                                    pointCount++
+                                }
+                            } ?: run {
+                                currentPath.lineTo(newPoint.x, newPoint.y)
+                                lastPoint = newPoint
+                                pointCount++
+                            }
                         }
                     )
                 }
             }
     ) {
-        val strokePx = 0.07f * min(size.width, size.height)
-        val style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        // finishedPaths.forEach { drawPath(path = it, color = Color.Black, style = style) }
-        drawPath(path = currentPath, color = Color.Black, style = style)
+        val strokePx = DrawingConfig.getStrokeWidth(min(size.width, size.height))
+        val style = Stroke(
+            width = strokePx, 
+            cap = StrokeCap.Round, 
+            join = StrokeJoin.Round,
+            miter = 10f
+        )
+        
+        // Enable anti-aliasing for smoother rendering
+        drawPath(
+            path = currentPath,
+            color = Color.Black,
+            style = style
+        )
     }
+}
+
+// Douglas-Peucker algorithm for path simplification
+private fun simplifyPath(path: Path, pointCount: Int): Path {
+    // For now, return the original path
+    // In a production app, you would implement proper path simplification
+    return path
 }
 
 

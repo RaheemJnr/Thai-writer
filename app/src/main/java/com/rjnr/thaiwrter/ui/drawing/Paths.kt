@@ -25,7 +25,7 @@ import android.graphics.Canvas as AndroidCanvas
 import androidx.compose.ui.graphics.Path as ComposePath
 
 data class StrokeSpec(
-    val pathData: String,           // raw SVG “d” string
+    val pathData: String,           // raw SVG "d" string
     val strokeWidth: Float = 14f
 )
 
@@ -234,7 +234,7 @@ fun StrokeGuide(
         pathScaledAndTransformed.transform(m)
         // --- End Sizing ---
 
-        val strokeWidthPx = 0.08f * min(size.width, size.height) // Adjust thickness as needed
+        val strokeWidthPx = DrawingConfig.getStrokeWidth(min(size.width, size.height)) // Use config instead of hardcoded
 
         // 1. Draw the full, faint static guide path underneath
         drawPath(
