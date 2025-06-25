@@ -1,5 +1,6 @@
 package com.rjnr.thaiwrter.data.models
 
+import android.util.Log.d
 import kotlinx.serialization.Serializable
 
 
@@ -13,18 +14,33 @@ data class ThaiCharacter(
     val category: String = ""    // consonant, vowel, tone mark, etc.
 )
 
-
 val THAI_CHARACTERS = listOf(
     ThaiCharacter(
         id = 0,
         character = "ก",
         pronunciation = "ko kai",
         category = "consonant",
-        svgPathData = "M14 127C11.6 38.2 7 55 28 33L1 15C1 15 26.9941 0.0325775 45 1C60.4269 1.82886 82 5.00001 82 15C82 25 82 127 82 127"
+        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
+        ),
+    ThaiCharacter(
+        id = 1,
+        character = "ข",
+        pronunciation = "kho khai",
+        category = "consonant",
+        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
     ),
-    ThaiCharacter(1, "ข", "kho khai", category = "consonant"),
-    ThaiCharacter(2, "ฃ", "kho khuat", category = "consonant"),
-    ThaiCharacter(3, "ค", "kho khwai", category = "consonant"),
+    ThaiCharacter(
+        2, "ฃ", "kho khuat",
+        category = "consonant",
+        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
+    ),
+    ThaiCharacter(
+        3,
+        "ค",
+        "kho khwai",
+        category = "consonant",
+        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
+    ),
     ThaiCharacter(4, "ฅ", "kho khon", category = "consonant"),
     ThaiCharacter(5, "ฆ", "kho rakhang", category = "consonant"),
     ThaiCharacter(6, "ง", "ngo ngu", category = "consonant"),
