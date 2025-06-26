@@ -21,22 +21,29 @@ import kotlin.math.min
 @Composable
 fun MorphOverlay(
     userPath: Path,
-    perfectSvgData: String?, // Changed from perfectSvg to perfectSvgData
+    perfectStrokes: List<String>,
     durationMs: Int = 800,   // Slightly longer for better visual
     modifier: Modifier = Modifier,
     marginToApply: Float = 0.25f, // Consistent margin
     onFinished: () -> Unit
 ) {
-    if (perfectSvgData.isNullOrEmpty()) {
-        LaunchedEffect(Unit) { onFinished() } // Call onFinished immediately if no perfect path
+    if (perfectStrokes.isEmpty()) {
+        LaunchedEffect(Unit) { onFinished() }
         return
     }
 
-    val targetPath = remember(perfectSvgData) {
-        androidx.compose.ui.graphics.vector.PathParser()
-            .parsePathString(perfectSvgData)
-            .toPath()
-            .asAndroidPath()
+    /* -------- fuse strokes -------- */
+    val targetPath = remember(perfectStrokes) {
+        android.graphics.Path().apply {
+            perfectStrokes.forEach { d ->
+                addPath(
+                    androidx.compose.ui.graphics.vector.PathParser()
+                        .parsePathString(d)
+                        .toPath()
+                        .asAndroidPath()
+                )
+            }
+        }
     }
     // ... rest of your MorphOverlay logic is good ...
     // Make sure the scaling logic (m matrix) inside Canvas is robust
@@ -115,3 +122,5 @@ fun MorphOverlay(
         )
     }
 }
+
+

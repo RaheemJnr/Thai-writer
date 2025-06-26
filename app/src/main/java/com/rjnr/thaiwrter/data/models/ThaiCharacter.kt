@@ -1,6 +1,5 @@
 package com.rjnr.thaiwrter.data.models
 
-import android.util.Log.d
 import kotlinx.serialization.Serializable
 
 
@@ -9,9 +8,9 @@ data class ThaiCharacter(
     val id: Int,
     val character: String,
     val pronunciation: String,
-    val svgPathData: String = "",
+    val strokes: List<String> = listOf(),           // NEW – ordered centre-line paths
     val difficulty: Int = 0,
-    val category: String = ""    // consonant, vowel, tone mark, etc.
+    val category: String = ""            // consonant, vowel, tone mark, …
 )
 
 val THAI_CHARACTERS = listOf(
@@ -20,26 +19,26 @@ val THAI_CHARACTERS = listOf(
         character = "ก",
         pronunciation = "ko kai",
         category = "consonant",
-        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
-        ),
+        strokes = listOf("M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5")
+    ),
     ThaiCharacter(
         id = 1,
         character = "ข",
         pronunciation = "kho khai",
         category = "consonant",
-        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
+        strokes = listOf("M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5")
     ),
     ThaiCharacter(
         2, "ฃ", "kho khuat",
         category = "consonant",
-        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
+        strokes = listOf("M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5")
     ),
     ThaiCharacter(
         3,
         "ค",
         "kho khwai",
         category = "consonant",
-        svgPathData = "M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5"
+        strokes = listOf("M9.00007 723.5C9.00007 469.5 93.3334 314 135.5 268C-2.89995 193.2 -10.5 139.5 9.00001 111.5C114.857 -40.5 469.5 -31 549 111.5V723.5")
     ),
     ThaiCharacter(4, "ฅ", "kho khon", category = "consonant"),
     ThaiCharacter(5, "ฆ", "kho rakhang", category = "consonant"),
