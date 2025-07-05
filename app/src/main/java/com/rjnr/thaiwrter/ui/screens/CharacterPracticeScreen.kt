@@ -298,7 +298,7 @@ fun CharacterPracticeScreen(
                         RoundedCornerShape(8.dp)
                     ) // Theme color
             ) {
-                // Grid lines (like in the video - simplified)
+                // Grid lines
                 Canvas(Modifier.fillMaxSize()) {
                     val thirdHeight = size.height / 3
                     val thirdWidth = size.width / 3
