@@ -350,6 +350,8 @@ fun pathsAreClose(user: ComposePath, perfect: ComposePath, threshold: Float = 0.
     return bitmapSimilarity(a, b) >= threshold
 }
 
+
+
 @Preview(showBackground = true)
 @Composable
 private fun FirstPathPreview() {

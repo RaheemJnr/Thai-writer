@@ -1,6 +1,5 @@
 package com.rjnr.thaiwrter.ui.screens
 
-import MorphOverlay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,9 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
@@ -45,6 +48,7 @@ import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
 import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
 import com.rjnr.thaiwrter.ui.viewmodel.PracticeStep
 import org.koin.androidx.compose.koinViewModel
+import kotlin.math.min
 
 @Composable
 fun CharacterPracticeScreen(
@@ -56,20 +60,33 @@ fun CharacterPracticeScreen(
     val guideAnimationProgress = viewModel.guideAnimationProgress // Direct float
     val userHasStartedTracing by viewModel.userHasStartedTracing.collectAsState() // Collect new state
 //    val userDrawnPath by viewModel.userDrawnPath.collectAsState()
-    val userDrawnPathForMorph by viewModel.userDrawnPathForMorph.collectAsState()
+    val pathForCrossFade by viewModel.pathForCrossFade.collectAsState()
     val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
+    val crossFadeProgress by viewModel.crossFadeAnimation.asState()
 
     // For the "tap to advance" functionality
     val interactionSource = remember { MutableInteractionSource() }
     // Enabled only when user is supposed to draw and not during morphing/guide animation
-    val drawingEnabled = practiceStep == PracticeStep.GUIDE_AND_TRACE ||
-            practiceStep == PracticeStep.USER_WRITING_BLANK
+    val drawingEnabled =
+        practiceStep == PracticeStep.GUIDE_AND_TRACE || practiceStep == PracticeStep.USER_WRITING_BLANK
 
     // Trigger the guide animation loop
     LaunchedEffect(practiceStep, currentCharacter, userHasStartedTracing) {
         // Add userHasStartedTracing key
         if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null && !userHasStartedTracing) {
             viewModel.executeGuideAnimationLoop()
+        }
+    }
+
+    LaunchedEffect(practiceStep) {
+        val isCrossFading = practiceStep == PracticeStep.CROSS_FADING_TRACE || practiceStep == PracticeStep.CROSS_FADING_WRITE
+        if (isCrossFading) {
+            viewModel.crossFadeAnimation.snapTo(0f)
+            viewModel.crossFadeAnimation.animateTo(
+                targetValue = 1f,
+                animationSpec = androidx.compose.animation.core.tween(durationMillis = 600)
+            )
+            viewModel.onCrossFadeFinished()
         }
     }
 
@@ -196,20 +213,67 @@ fun CharacterPracticeScreen(
                     strokeWidthRatio = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO
                 )
 
-                val lastUserPath = userDrawnPathForMorph
-                if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && lastUserPath != null) {
-                    MorphOverlay(
-                        userPath = lastUserPath,
-                        perfectStrokes = listOf(
-                            currentCharacter?.strokes?.getOrNull(
-                                currentStrokeIndex
-                            ) ?: ""
-                        ),
-                        onFinished = viewModel::onMorphAnimationFinished,
-                        marginToApply = 0.2f,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null) {
+                // WHAT CHANGED: This is the new cross-fade animation canvas. It replaces the MorphOverlay.
+                // WHY: This provides the integrated, per-stroke feedback. It draws both the fading user path and the appearing correct path.
+                val isCrossFading =
+                    practiceStep == PracticeStep.CROSS_FADING_TRACE || practiceStep == PracticeStep.CROSS_FADING_WRITE
+                if (isCrossFading && pathForCrossFade != null && currentCharacter != null) {
+                    val perfectStrokeSvg = currentCharacter!!.strokes[currentStrokeIndex]
+                    val perfectPath = remember(perfectStrokeSvg) {
+                        PathParser().parsePathString(perfectStrokeSvg).toPath()
+                    }
+
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val strokeWidthPx =
+                            DrawingConfig.getStrokeWidth(min(size.width, size.height))
+                        val strokeStyle = Stroke(
+                            width = strokeWidthPx,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round
+                        )
+
+                        // Draw the user's path, fading out
+                        drawPath(
+                            path = pathForCrossFade!!,
+                            color = Color.Black,
+                            style = strokeStyle,
+                            alpha = 1f - crossFadeProgress
+                        )
+
+                        // Draw the perfect path, fading in green
+                        // We need to scale it correctly, just like in StrokeGuide
+                        val rawBounds = android.graphics.RectF()
+                            .also { perfectPath.asAndroidPath().computeBounds(it, true) }
+                        val marginToApply = 0.2f
+                        val padX = size.width * marginToApply
+                        val padY = size.height * marginToApply
+                        val availW = size.width - padX * 2
+                        val availH = size.height - padY * 2
+
+                        if (rawBounds.width() > 0 && rawBounds.height() > 0) {
+                            val finalScale =
+                                min(availW / rawBounds.width(), availH / rawBounds.height()) * 0.9f
+                            val finalDx =
+                                padX + (availW - rawBounds.width() * finalScale) / 2f - (rawBounds.left * finalScale)
+                            val finalDy =
+                                padY + (availH - rawBounds.height() * finalScale) / 2f - (rawBounds.top * finalScale)
+
+                            val matrix = Matrix()
+                            matrix.scale(finalScale, finalScale)
+                            matrix.translate(finalDx / finalScale, finalDy / finalScale)
+                            perfectPath.transform(matrix)
+
+                            drawPath(
+                                path = perfectPath,
+                                color = Color.Green,
+                                style = strokeStyle,
+                                alpha = crossFadeProgress
+                            )
+                        }
+                    }
+                }
+
+                if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null) {
                     currentCharacter?.let { char ->
                         StrokeGuide(
                             strokes = char.strokes,
@@ -224,6 +288,7 @@ fun CharacterPracticeScreen(
                         )
                     }
                 }
+
             }
 
 //            // Instruction Text
@@ -256,7 +321,7 @@ fun CharacterPracticeScreen(
                 text = when (practiceStep) {
                     PracticeStep.INITIAL -> "Loading..."
                     PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace stroke ${currentStrokeIndex + 1}" else "Finish tracing"
-                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> "Perfect!"
+                    PracticeStep.CROSS_FADING_TRACE, PracticeStep.CROSS_FADING_WRITE -> "Perfect!"
                     PracticeStep.AWAITING_BLANK_SLATE -> "Great! Tap to try from memory."
                     PracticeStep.USER_WRITING_BLANK -> "Write stroke ${currentStrokeIndex + 1} from memory"
                     PracticeStep.AWAITING_NEXT_CHARACTER -> "Excellent! Tap for the next character."

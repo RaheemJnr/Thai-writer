@@ -25,23 +25,14 @@ import kotlin.coroutines.cancellation.CancellationException
 
 
 // Add to your ViewModel or a separate file
-//enum class PracticeStep {
-//    INITIAL,                    // Initial state, character loaded
-//    GUIDE_AND_TRACE,            // NEW: Combines guide animation and user tracing
-//    MORPHING_TRACE_TO_CORRECT,  // User's trace morphs to green correct version
-//    AWAITING_BLANK_SLATE,       // Green character shown, tap to proceed to blank slate
-//    USER_WRITING_BLANK,         // Blank canvas, user draws from memory
-//    MORPHING_WRITE_TO_CORRECT,  // User's write morphs to green correct version
-//    AWAITING_NEXT_CHARACTER     // Green character shown, tap for next character/lesson complete
-//}
 
 enum class PracticeStep {
     INITIAL,
     GUIDE_AND_TRACE,
-    MORPHING_TRACE_TO_CORRECT,  // After guided tracing
+    CROSS_FADING_TRACE,  // After guided tracing
     AWAITING_BLANK_SLATE,
     USER_WRITING_BLANK,
-    MORPHING_WRITE_TO_CORRECT, // After blank slate writing
+    CROSS_FADING_WRITE, // After blank slate writing
     AWAITING_NEXT_CHARACTER
 }
 
@@ -61,10 +52,14 @@ class CharacterPracticeViewModel(
     private val _guideAnimationProgress = Animatable(0f) // For one-shot guide animation
     val guideAnimationProgress: Float get() = _guideAnimationProgress.value
 
-    // WHAT CHANGED: We now store a list of paths, one for each stroke drawn by the user.
-    // WHY: This allows us to render all the user's completed strokes on the canvas as they build the character.
-    private val _userDrawnPathForMorph = MutableStateFlow<Path?>(null)
-    val userDrawnPathForMorph: StateFlow<Path?> = _userDrawnPathForMorph.asStateFlow()
+    // WHAT CHANGED: This state now holds the path specifically for the cross-fade animation.
+    // WHY: This isolates the path being animated, preventing it from being rendered incorrectly in other states.
+    private val _pathForCrossFade = MutableStateFlow<Path?>(null)
+    val pathForCrossFade: StateFlow<Path?> = _pathForCrossFade.asStateFlow()
+
+    // WHAT CHANGED: Added a new Animatable for the cross-fade effect.
+    // WHY: This decouples the guide animation from the feedback animation, allowing them to run independently with different durations and effects.
+    val crossFadeAnimation = Animatable(0f)
 
     // To trigger clearing the DrawingCanvas from the ViewModel
     private val _clearCanvasSignal = MutableSharedFlow<Unit>(replay = 0)
@@ -94,15 +89,19 @@ class CharacterPracticeViewModel(
     // WHAT CHANGED: Logic now resets the stroke index and clears the user path list.
     // WHY: Ensures that every new character starts fresh from the first stroke.
     private fun setupForNewCharacter() {
-        _userDrawnPathForMorph.value = null
+        _pathForCrossFade.value = null
         _userHasStartedTracing.value = false
         _currentStrokeIndex.value = 0
-        viewModelScope.launch { _guideAnimationProgress.snapTo(0f) }
+        viewModelScope.launch {
+            _guideAnimationProgress.snapTo(0f)
+            crossFadeAnimation.snapTo(0f)
+        }
         _practiceStep.value = PracticeStep.GUIDE_AND_TRACE
     }
 
     private fun initialLoadAndPrepareCharacter() {
-        _currentCharacter.value = allCharacters.find { it.character == "ญ" } ?: allCharacters.randomOrNull()
+        _currentCharacter.value =
+            allCharacters.find { it.character == "ญ" } ?: allCharacters.randomOrNull()
         _currentCharacter.value?.let {
             setupForNewCharacter()
         }
@@ -231,55 +230,51 @@ class CharacterPracticeViewModel(
         val perfectPath = PathParser().parsePathString(perfectSvgPath).toPath()
 
         if (pathsAreClose(user = path, perfect = perfectPath, threshold = 0.55f)) {
-            _userDrawnPathForMorph.value = path
-            if (_practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {
-                _practiceStep.value = PracticeStep.MORPHING_TRACE_TO_CORRECT
-            } else if (_practiceStep.value == PracticeStep.USER_WRITING_BLANK) {
-                _practiceStep.value = PracticeStep.MORPHING_WRITE_TO_CORRECT
+            _pathForCrossFade.value = path
+            val targetStep = if (_practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {
+                PracticeStep.CROSS_FADING_TRACE
+            } else {
+                PracticeStep.CROSS_FADING_WRITE
             }
+            _practiceStep.value = targetStep
         }
     }
 
-    //    fun onMorphAnimationFinished() {
-//        when (_practiceStep.value) {
-//            PracticeStep.MORPHING_TRACE_TO_CORRECT -> {
-//                _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
-//            }
-//
-//            PracticeStep.MORPHING_WRITE_TO_CORRECT -> {
-//                _practiceStep.value = PracticeStep.AWAITING_NEXT_CHARACTER
-//            }
-//
-//            else -> {}
-//        }
-//    }
-    // WHAT CHANGED: Logic to handle advancing to the next stroke or the next phase.
-    // WHY: After a stroke is confirmed (by morphing), we check if there are more strokes.
-    // If yes, we increment the index and restart the guide. If no, we move to the blank slate phase.
-    fun onMorphAnimationFinished() {
+    // WHAT CHANGED: New function to manage the cross-fade animation lifecycle.
+    // WHY: This encapsulates the animation logic, making it reusable and easier to manage. It animates and then calls the function to advance the state.
+    private fun triggerCrossFadeAnimation() {
+        viewModelScope.launch {
+            crossFadeAnimation.snapTo(0f)
+            crossFadeAnimation.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 600) // A quick, smooth fade
+            )
+            onCrossFadeFinished()
+        }
+    }
+
+    // WHAT CHANGED: This function is now called after the cross-fade animation completes.
+    // WHY: This ensures the state progresses only after the feedback animation is fully shown to the user.
+    fun onCrossFadeFinished() {
         val char = _currentCharacter.value ?: return
         val step = _practiceStep.value
-        _userDrawnPathForMorph.value = null
+        _pathForCrossFade.value = null
 
         when (step) {
-            PracticeStep.MORPHING_TRACE_TO_CORRECT -> {
+            PracticeStep.CROSS_FADING_TRACE -> {
                 if (_currentStrokeIndex.value < char.strokes.size - 1) {
-                    // More strokes to guide. Automatically advance.
                     _currentStrokeIndex.value++
                     _userHasStartedTracing.value = false
                     _practiceStep.value = PracticeStep.GUIDE_AND_TRACE
                 } else {
-                    // Finished guiding all strokes. Wait for tap to start blank slate.
                     _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
                 }
             }
-            PracticeStep.MORPHING_WRITE_TO_CORRECT -> {
+            PracticeStep.CROSS_FADING_WRITE -> {
                 if (_currentStrokeIndex.value < char.strokes.size - 1) {
-                    // More strokes to write from memory.
                     _currentStrokeIndex.value++
                     _practiceStep.value = PracticeStep.USER_WRITING_BLANK
                 } else {
-                    // Finished writing all strokes from memory.
                     _practiceStep.value = PracticeStep.AWAITING_NEXT_CHARACTER
                 }
             }
@@ -287,25 +282,6 @@ class CharacterPracticeViewModel(
         }
     }
 
-
-    //    // In advanceToNextStep, when going from AWAITING_NEXT_CHARACTER to new char
-//    fun advanceToNextStep() {
-//        viewModelScope.launch {
-//            when (_practiceStep.value) {
-//                PracticeStep.AWAITING_BLANK_SLATE -> {
-//                    _userDrawnPath.value = null
-//                    _clearCanvasSignal.emit(Unit)
-//                    _practiceStep.value = PracticeStep.USER_WRITING_BLANK
-//                }
-//                PracticeStep.AWAITING_NEXT_CHARACTER -> {
-//                    _userDrawnPath.value = null
-//                    _clearCanvasSignal.emit(Unit)
-//                    loadNextCharacterAndPrepareAnimation()
-//                }
-//                else -> {}
-//            }
-//        }
-//    }
     // WHAT CHANGED: New transitions for the stroke-by-stroke flow.
     // WHY: This function now handles moving between strokes within the same character,
     // as well as advancing to the next character after completion.
@@ -313,7 +289,7 @@ class CharacterPracticeViewModel(
         viewModelScope.launch {
             when (_practiceStep.value) {
                 PracticeStep.AWAITING_BLANK_SLATE -> {
-                    _userDrawnPathForMorph.value = null
+                    _pathForCrossFade.value = null
                     _currentStrokeIndex.value = 0
                     _userHasStartedTracing.value = false
                     _clearCanvasSignal.emit(Unit)
@@ -332,12 +308,10 @@ class CharacterPracticeViewModel(
     // The `clearCanvas()` from your code is good for a manual clear button.
     // The `_shouldClearCanvas` can be replaced by `_clearCanvasSignal`.
 
-    fun manualClear() { // For the "Clear" button
+    fun manualClear() {
         viewModelScope.launch {
-            _userDrawnPathForMorph.value = null
+            _pathForCrossFade.value = null
             _clearCanvasSignal.emit(Unit)
-            // Optionally reset to current step's beginning if needed
-            // e.g., if (_practiceStep.value == PracticeStep.USER_TRACING_ON_GUIDE) { /* do nothing more */ }
             setupForNewCharacter()
         }
     }
