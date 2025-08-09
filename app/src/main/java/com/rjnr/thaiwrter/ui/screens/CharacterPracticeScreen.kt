@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
@@ -239,7 +241,9 @@ fun CharacterPracticeScreen(
     val practiceStep by viewModel.practiceStep.collectAsState()
     val guideAnimationProgress = viewModel.guideAnimationProgress // Direct float
     val userHasStartedTracing by viewModel.userHasStartedTracing.collectAsState() // Collect new state
-    val userDrawnPath by viewModel.userDrawnPath.collectAsState()
+//    val userDrawnPath by viewModel.userDrawnPath.collectAsState()
+    val userDrawnPaths by viewModel.userDrawnPaths.collectAsState()
+    val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
 
     // For the "tap to advance" functionality
     val interactionSource = remember { MutableInteractionSource() }
@@ -348,10 +352,19 @@ fun CharacterPracticeScreen(
 //                }
                 if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
                     currentCharacter?.let { char ->
+//                        StrokeGuide(
+//                            strokes = char.strokes,
+//                            animationProgress = guideAnimationProgress,
+//                            userHasStartedTracing = userHasStartedTracing,
+//                            marginToApply = 0.2f,
+//                            modifier = Modifier.fillMaxSize()
+//                        )
                         StrokeGuide(
                             strokes = char.strokes,
                             animationProgress = guideAnimationProgress,
                             userHasStartedTracing = userHasStartedTracing,
+                            currentStrokeIndex = currentStrokeIndex,
+                            completedStrokes = userDrawnPaths, // Pass completed user strokes
                             marginToApply = 0.2f,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -368,27 +381,72 @@ fun CharacterPracticeScreen(
                     strokeColor = Color.Black,
                     strokeWidthRatio = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO
                 )
+                // Also draw the previously drawn strokes by the user
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    userDrawnPaths.forEach { path ->
+                        drawPath(
+                            path = path,
+                            color = Color.Black,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = DrawingConfig.getStrokeWidth(size.minDimension),
+                                cap = StrokeCap.Round,
+                                join = StrokeJoin.Round
+                            )
+                        )
+                    }
+                }
 
-                // Morph Overlay
-                // Morph Overlay or Static Green Correct Character
-                if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && userDrawnPath != null) {
+//                // Morph Overlay
+//                // Morph Overlay or Static Green Correct Character
+//                if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && userDrawnPath != null) {
+//                    MorphOverlay(
+//                        userPath = userDrawnPath!!,
+//                        perfectStrokes = currentCharacter?.strokes ?: listOf(),
+//                        onFinished = viewModel::onMorphAnimationFinished,
+//                        marginToApply = 0.2f, // Consistent margin
+//                        modifier = Modifier.fillMaxSize()
+//                    )
+//                } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null) {
+//                    // Re-use StrokeGuide to draw the static perfect character in green
+//                    currentCharacter?.let { char ->
+//                        StrokeGuide(
+//                            strokes = char.strokes,
+//                            animationProgress = 1f, // Fully drawn
+//                            userHasStartedTracing = true, // Treat as if user interacted for static display
+//                            staticGuideColor = Color.Green.copy(alpha = 0.0f), // Make underlying static guide invisible
+//                            animatedSegmentColor = Color.Green, // This will be the color used for the "segment"
+//                            finalStaticSegmentColor = Color.Green, // Ensure it's green
+//                            marginToApply = 0.2f,
+//                            modifier = Modifier.fillMaxSize()
+//                        )
+//                    }
+//                }
+                // WHAT CHANGED: MorphOverlay logic now handles individual strokes.
+                // WHY: The morphing feedback should be immediate after each stroke is drawn.
+                val lastUserPath = userDrawnPaths.lastOrNull()
+                if (practiceStep == PracticeStep.MORPHING_TO_CORRECT && lastUserPath != null) {
                     MorphOverlay(
-                        userPath = userDrawnPath!!,
-                        perfectStrokes = currentCharacter?.strokes ?: listOf(),
+                        userPath = lastUserPath,
+                        perfectStrokes = listOf(
+                            currentCharacter?.strokes?.getOrNull(
+                                currentStrokeIndex
+                            ) ?: ""
+                        ),
                         onFinished = viewModel::onMorphAnimationFinished,
-                        marginToApply = 0.2f, // Consistent margin
+                        marginToApply = 0.2f,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null) {
-                    // Re-use StrokeGuide to draw the static perfect character in green
                     currentCharacter?.let { char ->
                         StrokeGuide(
                             strokes = char.strokes,
-                            animationProgress = 1f, // Fully drawn
-                            userHasStartedTracing = true, // Treat as if user interacted for static display
-                            staticGuideColor = Color.Green.copy(alpha = 0.0f), // Make underlying static guide invisible
-                            animatedSegmentColor = Color.Green, // This will be the color used for the "segment"
-                            finalStaticSegmentColor = Color.Green, // Ensure it's green
+                            animationProgress = 1f,
+                            userHasStartedTracing = true,
+                            currentStrokeIndex = char.strokes.size, // Show all as completed
+                            completedStrokes = emptyList(),
+                            staticGuideColor = Color.Green.copy(alpha = 0.0f),
+                            animatedSegmentColor = Color.Green,
+                            finalStaticSegmentColor = Color.Green,
                             marginToApply = 0.2f,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -397,29 +455,46 @@ fun CharacterPracticeScreen(
             }
 
 
-            // Instruction Text
+//            // Instruction Text
+//            Text(
+//                text = when (practiceStep) {
+//                    PracticeStep.INITIAL -> "Loading..."
+//                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace the character" else "Finish tracing"
+//                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> ""
+//                    PracticeStep.AWAITING_BLANK_SLATE -> "Tap to try from memory"
+//                    PracticeStep.USER_WRITING_BLANK -> "Write the character"
+//                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next"
+//                },
+//                style = MaterialTheme.typography.titleMedium,
+//                color = Color.White, // White text for blue background
+//                modifier = Modifier
+//                    .align(Alignment.CenterHorizontally)
+//                    .padding(top = 24.dp) // More space for instruction
+//                    .clickable( // Make "tap to advance" apply here too
+//                        interactionSource = interactionSource,
+//                        indication = null,
+//                        enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
+//                                practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
+//                    ) {
+//                        viewModel.advanceToNextStep()
+//                    }
+//            )
+            // WHAT CHANGED: Instruction text is updated for the new flow.
+            // WHY: To provide clear, context-sensitive instructions to the user at each step.
             Text(
                 text = when (practiceStep) {
                     PracticeStep.INITIAL -> "Loading..."
-                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace the character" else "Finish tracing"
-                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> ""
+                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace stroke ${currentStrokeIndex + 1}" else "Finish tracing"
+                    PracticeStep.MORPHING_TO_CORRECT -> ""
+                    PracticeStep.AWAITING_NEXT_STROKE_GUIDE -> "Tap for next stroke"
                     PracticeStep.AWAITING_BLANK_SLATE -> "Tap to try from memory"
-                    PracticeStep.USER_WRITING_BLANK -> "Write the character"
-                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next"
+                    PracticeStep.USER_WRITING_BLANK -> "Write stroke ${currentStrokeIndex + 1}"
+                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next character"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White, // White text for blue background
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(top = 24.dp) // More space for instruction
-                    .clickable( // Make "tap to advance" apply here too
-                        interactionSource = interactionSource,
-                        indication = null,
-                        enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
-                                practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
-                    ) {
-                        viewModel.advanceToNextStep()
-                    }
+                    .padding(top = 24.dp)
             )
 
             Spacer(Modifier.weight(1f))
