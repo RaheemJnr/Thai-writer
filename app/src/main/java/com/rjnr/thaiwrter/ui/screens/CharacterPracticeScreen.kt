@@ -200,7 +200,11 @@ fun CharacterPracticeScreen(
                 if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && lastUserPath != null) {
                     MorphOverlay(
                         userPath = lastUserPath,
-                        perfectStrokes = listOf(currentCharacter?.strokes?.getOrNull(currentStrokeIndex) ?: ""),
+                        perfectStrokes = listOf(
+                            currentCharacter?.strokes?.getOrNull(
+                                currentStrokeIndex
+                            ) ?: ""
+                        ),
                         onFinished = viewModel::onMorphAnimationFinished,
                         marginToApply = 0.2f,
                         modifier = Modifier.fillMaxSize()
