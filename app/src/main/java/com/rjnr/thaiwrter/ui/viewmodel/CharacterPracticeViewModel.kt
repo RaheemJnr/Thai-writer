@@ -4,11 +4,13 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rjnr.thaiwrter.data.models.THAI_CHARACTERS
 import com.rjnr.thaiwrter.data.models.ThaiCharacter
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
+import com.rjnr.thaiwrter.ui.drawing.pathsAreClose
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import kotlinx.coroutines.NonCancellable.isActive
 import kotlinx.coroutines.delay
@@ -36,11 +38,10 @@ import kotlin.coroutines.cancellation.CancellationException
 enum class PracticeStep {
     INITIAL,
     GUIDE_AND_TRACE,
-    // WHAT CHANGED: MORPHING_TRACE_TO_CORRECT is now more generic for any stroke.
-    MORPHING_TO_CORRECT,
-    AWAITING_NEXT_STROKE_GUIDE, // After a guided stroke is morphed, wait to guide the next one.
-    AWAITING_BLANK_SLATE, // After all guided strokes are done, wait to start memory writing.
+    MORPHING_TRACE_TO_CORRECT,  // After guided tracing
+    AWAITING_BLANK_SLATE,
     USER_WRITING_BLANK,
+    MORPHING_WRITE_TO_CORRECT, // After blank slate writing
     AWAITING_NEXT_CHARACTER
 }
 
@@ -62,8 +63,8 @@ class CharacterPracticeViewModel(
 
     // WHAT CHANGED: We now store a list of paths, one for each stroke drawn by the user.
     // WHY: This allows us to render all the user's completed strokes on the canvas as they build the character.
-    private val _userDrawnPaths = MutableStateFlow<List<Path>>(emptyList())
-    val userDrawnPaths: StateFlow<List<Path>> = _userDrawnPaths.asStateFlow()
+    private val _userDrawnPathForMorph = MutableStateFlow<Path?>(null)
+    val userDrawnPathForMorph: StateFlow<Path?> = _userDrawnPathForMorph.asStateFlow()
 
     // To trigger clearing the DrawingCanvas from the ViewModel
     private val _clearCanvasSignal = MutableSharedFlow<Unit>(replay = 0)
@@ -84,7 +85,7 @@ class CharacterPracticeViewModel(
         initialLoadAndPrepareCharacter()
     }
 
-//    private fun setupForNewCharacter() {
+    //    private fun setupForNewCharacter() {
 //        _userDrawnPath.value = null
 //        _userHasStartedTracing.value = false
 //        viewModelScope.launch { _guideAnimationProgress.snapTo(0f) }
@@ -93,7 +94,7 @@ class CharacterPracticeViewModel(
     // WHAT CHANGED: Logic now resets the stroke index and clears the user path list.
     // WHY: Ensures that every new character starts fresh from the first stroke.
     private fun setupForNewCharacter() {
-        _userDrawnPaths.value = emptyList()
+        _userDrawnPathForMorph.value = null
         _userHasStartedTracing.value = false
         _currentStrokeIndex.value = 0
         viewModelScope.launch { _guideAnimationProgress.snapTo(0f) }
@@ -101,7 +102,7 @@ class CharacterPracticeViewModel(
     }
 
     private fun initialLoadAndPrepareCharacter() {
-        _currentCharacter.value = allCharacters.randomOrNull()
+        _currentCharacter.value = allCharacters.find { it.character == "ญ" } ?: allCharacters.randomOrNull()
         _currentCharacter.value?.let {
             setupForNewCharacter()
         }
@@ -200,7 +201,7 @@ class CharacterPracticeViewModel(
         }
     }
 
-//    fun onUserStrokeFinished(path: Path) {
+    //    fun onUserStrokeFinished(path: Path) {
 //        _userDrawnPath.value = path
 //        viewModelScope.launch { _clearCanvasSignal.emit(Unit) }
 //
@@ -221,22 +222,25 @@ class CharacterPracticeViewModel(
     // WHY: The core of the new logic. When a user finishes a stroke, we add it to our list
     // and transition to the morphing state. We don't wait for the full character.
     fun onUserStrokeFinished(path: Path) {
-        val currentPaths = _userDrawnPaths.value.toMutableList()
-        currentPaths.add(path)
-        _userDrawnPaths.value = currentPaths
-
         viewModelScope.launch { _clearCanvasSignal.emit(Unit) }
 
-        when (_practiceStep.value) {
-            PracticeStep.GUIDE_AND_TRACE, PracticeStep.USER_WRITING_BLANK -> {
-                _userHasStartedTracing.value = true
-                _practiceStep.value = PracticeStep.MORPHING_TO_CORRECT
+        val char = _currentCharacter.value ?: return
+        if (_currentStrokeIndex.value >= char.strokes.size) return
+
+        val perfectSvgPath = char.strokes[_currentStrokeIndex.value]
+        val perfectPath = PathParser().parsePathString(perfectSvgPath).toPath()
+
+        if (pathsAreClose(user = path, perfect = perfectPath, threshold = 0.55f)) {
+            _userDrawnPathForMorph.value = path
+            if (_practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {
+                _practiceStep.value = PracticeStep.MORPHING_TRACE_TO_CORRECT
+            } else if (_practiceStep.value == PracticeStep.USER_WRITING_BLANK) {
+                _practiceStep.value = PracticeStep.MORPHING_WRITE_TO_CORRECT
             }
-            else -> {}
         }
     }
 
-//    fun onMorphAnimationFinished() {
+    //    fun onMorphAnimationFinished() {
 //        when (_practiceStep.value) {
 //            PracticeStep.MORPHING_TRACE_TO_CORRECT -> {
 //                _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
@@ -254,29 +258,37 @@ class CharacterPracticeViewModel(
     // If yes, we increment the index and restart the guide. If no, we move to the blank slate phase.
     fun onMorphAnimationFinished() {
         val char = _currentCharacter.value ?: return
-        val isTracingPhase = _practiceStep.value == PracticeStep.MORPHING_TO_CORRECT && _userHasStartedTracing.value
+        val step = _practiceStep.value
+        _userDrawnPathForMorph.value = null
 
-        if (isTracingPhase) {
-            if (_currentStrokeIndex.value < char.strokes.size - 1) {
-                // More strokes to guide
-                _practiceStep.value = PracticeStep.AWAITING_NEXT_STROKE_GUIDE
-            } else {
-                // All strokes have been guided
-                _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
+        when (step) {
+            PracticeStep.MORPHING_TRACE_TO_CORRECT -> {
+                if (_currentStrokeIndex.value < char.strokes.size - 1) {
+                    // More strokes to guide. Automatically advance.
+                    _currentStrokeIndex.value++
+                    _userHasStartedTracing.value = false
+                    _practiceStep.value = PracticeStep.GUIDE_AND_TRACE
+                } else {
+                    // Finished guiding all strokes. Wait for tap to start blank slate.
+                    _practiceStep.value = PracticeStep.AWAITING_BLANK_SLATE
+                }
             }
-        } else { // This would be for the blank slate writing phase
-            if (_currentStrokeIndex.value < char.strokes.size - 1) {
-                // More strokes to write from memory
-                _currentStrokeIndex.value++
-                _practiceStep.value = PracticeStep.USER_WRITING_BLANK
-            } else {
-                // All strokes written from memory
-                _practiceStep.value = PracticeStep.AWAITING_NEXT_CHARACTER
+            PracticeStep.MORPHING_WRITE_TO_CORRECT -> {
+                if (_currentStrokeIndex.value < char.strokes.size - 1) {
+                    // More strokes to write from memory.
+                    _currentStrokeIndex.value++
+                    _practiceStep.value = PracticeStep.USER_WRITING_BLANK
+                } else {
+                    // Finished writing all strokes from memory.
+                    _practiceStep.value = PracticeStep.AWAITING_NEXT_CHARACTER
+                }
             }
+            else -> {}
         }
     }
 
-//    // In advanceToNextStep, when going from AWAITING_NEXT_CHARACTER to new char
+
+    //    // In advanceToNextStep, when going from AWAITING_NEXT_CHARACTER to new char
 //    fun advanceToNextStep() {
 //        viewModelScope.launch {
 //            when (_practiceStep.value) {
@@ -300,15 +312,10 @@ class CharacterPracticeViewModel(
     fun advanceToNextStep() {
         viewModelScope.launch {
             when (_practiceStep.value) {
-                PracticeStep.AWAITING_NEXT_STROKE_GUIDE -> {
-                    _currentStrokeIndex.value++
-                    _userHasStartedTracing.value = false
-                    viewModelScope.launch { _guideAnimationProgress.snapTo(0f) }
-                    _practiceStep.value = PracticeStep.GUIDE_AND_TRACE
-                }
                 PracticeStep.AWAITING_BLANK_SLATE -> {
-                    _userDrawnPaths.value = emptyList()
+                    _userDrawnPathForMorph.value = null
                     _currentStrokeIndex.value = 0
+                    _userHasStartedTracing.value = false
                     _clearCanvasSignal.emit(Unit)
                     _practiceStep.value = PracticeStep.USER_WRITING_BLANK
                 }
@@ -327,7 +334,7 @@ class CharacterPracticeViewModel(
 
     fun manualClear() { // For the "Clear" button
         viewModelScope.launch {
-            _userDrawnPaths.value = emptyList()
+            _userDrawnPathForMorph.value = null
             _clearCanvasSignal.emit(Unit)
             // Optionally reset to current step's beginning if needed
             // e.g., if (_practiceStep.value == PracticeStep.USER_TRACING_ON_GUIDE) { /* do nothing more */ }

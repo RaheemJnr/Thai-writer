@@ -43,12 +43,16 @@ fun ProgressScreen(navController: NavController) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        StrokeGuide(
-            strokes = testStroke,
-            animationProgress = scale,
-            userHasStartedTracing = false,
-            marginToApply = 0.2f,
-            modifier = Modifier.fillMaxSize()
-        )
+        testStroke.forEach { stroke ->
+//            StrokeGuide(
+//                strokes = stroke,
+//                animationProgress = scale,
+//                userHasStartedTracing = false,
+//                marginToApply = 0.2f,
+//                modifier = Modifier.fillMaxSize(),
+//                completedStrokes =,
+//                currentStrokeIndex = testStroke.size,
+//            )
+        }
     }
 }

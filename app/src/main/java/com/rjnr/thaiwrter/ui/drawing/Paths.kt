@@ -167,8 +167,7 @@ fun StrokeGuide(
     strokes: List<String>,
     animationProgress: Float,
     userHasStartedTracing: Boolean,
-    currentStrokeIndex: Int, // New parameter
-    completedStrokes: List<Path>, // New parameter for user's completed strokes
+    currentStrokeIndex: Int,
     marginToApply: Float = 0.15f,
     staticGuideColor: Color = Color.LightGray.copy(alpha = 0.4f),
     animatedSegmentColor: Color = Color(0xFF00579C),
@@ -190,7 +189,7 @@ fun StrokeGuide(
         val combined = android.graphics.Path().apply {
             parsedPaths.forEach { addPath(it) }
         }
-        RectF().also { combined.computeBounds(it, true) }
+        android.graphics.RectF().also { combined.computeBounds(it, true) }
     }
 
     val pm = remember { android.graphics.PathMeasure() }
@@ -214,8 +213,6 @@ fun StrokeGuide(
 
         val strokeWidthPx = DrawingConfig.getStrokeWidth(min(size.width, size.height))
 
-        // WHAT CHANGED: Draw the full faint guide for all strokes.
-        // WHY: The user should always see the faint outline of the complete character for context.
         val fullGuidePath = android.graphics.Path().apply {
             parsedPaths.forEach { addPath(it) }
             transform(m)
@@ -226,9 +223,6 @@ fun StrokeGuide(
             style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
-        // WHAT CHANGED: Draw previously completed strokes as solid guides.
-        // WHY: As the user completes each stroke, it should remain on screen as a solid blue/purple line
-        // to show what they've accomplished so far.
         for (i in 0 until currentStrokeIndex) {
             scaledStroke.reset()
             scaledStroke.set(parsedPaths[i])
@@ -240,9 +234,6 @@ fun StrokeGuide(
             )
         }
 
-        // WHAT CHANGED: Animate only the current stroke.
-        // WHY: This is the core of the new functionality. The animation is now focused on teaching
-        // one specific part of the character at a time.
         if (currentStrokeIndex < strokes.size) {
             scaledStroke.reset()
             scaledStroke.set(parsedPaths[currentStrokeIndex])
@@ -250,7 +241,6 @@ fun StrokeGuide(
             pm.setPath(scaledStroke, false)
             animSegment.reset()
 
-            // When user starts tracing, the guide becomes fully visible and static.
             val segmentLength = if (userHasStartedTracing) pm.length else pm.length * animationProgress
             pm.getSegment(0f, segmentLength, animSegment, true)
 
