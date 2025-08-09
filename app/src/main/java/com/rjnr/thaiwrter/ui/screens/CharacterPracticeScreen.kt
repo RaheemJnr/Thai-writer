@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
@@ -44,192 +46,6 @@ import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
 import com.rjnr.thaiwrter.ui.viewmodel.PracticeStep
 import org.koin.androidx.compose.koinViewModel
 
-//@Composable
-//fun CharacterPracticeScreen(
-//    viewModel: CharacterPracticeViewModel = koinViewModel(),
-//    navController: NavController
-//) {
-//    //
-//    val prediction by viewModel.prediction.collectAsState()
-//    val currentCharacter by viewModel.currentCharacter.collectAsState()
-//    val shouldClearCanvas by viewModel.shouldClearCanvas.collectAsState()
-//    val pathColor by viewModel.pathColor.collectAsState()
-//    val isCorrect by viewModel.isCorrect.collectAsState()
-//    val instructionText by viewModel.instructionText.collectAsState()
-//
-//    // System metrics for proper scaling
-//    val metrics = LocalDensity.current.density
-//    val strokePath = remember(testStroke.pathData) {
-//        androidx.compose.ui.graphics.vector.PathParser()    // UI-graphics 1.7+
-//            .parsePathString(testStroke.pathData)
-//            .toPath()
-//    }
-//    val perfectStroke =
-//        "M14 127C11.6 38.2 7 55 28 33L1 15C1 15 26.9941 0.0325775 45 1C60.4269 1.82886 82 5.00001 82 15C82 25 82 127 82 127"
-//
-//    val perfectPath = remember(perfectStroke) {
-//        PathParser()
-//            .parsePathString(perfectStroke)
-//            .toPath()
-//    }
-//    /* --- state --- */
-//    var showGuide by remember { mutableStateOf(true) }
-//    var showMorph by remember { mutableStateOf(false) }
-//    var userPathForMorph by remember { mutableStateOf<Path?>(null) }
-//
-//
-//    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//
-//        Column(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .padding(innerPadding)
-//                .padding(16.dp)
-//                .background(MaterialTheme.colorScheme.background)
-//
-//        ) {
-//            // Character display
-//            Text(
-//                text = currentCharacter?.character ?: "",
-//                style = MaterialTheme.typography.displayLarge,
-//                modifier = Modifier.align(Alignment.CenterHorizontally)
-//            )
-//
-//            // Pronunciation guide
-//            Text(
-//                text = currentCharacter?.pronunciation ?: "",
-//                style = MaterialTheme.typography.bodyLarge,
-//                modifier = Modifier.align(Alignment.CenterHorizontally)
-//            )
-//
-//            // Drawing canvas
-//            Box(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .aspectRatio(1f)
-//                    .padding(vertical = 16.dp)
-//            ) {
-//                Card(
-//                    modifier = Modifier.fillMaxSize(),
-//                    shape = RoundedCornerShape(8.dp)
-//                ) {
-//                    Box(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .aspectRatio(1f)
-//                            .padding(16.dp)
-//                    ) {
-//                        // Main drawing canvas
-//                        if (showGuide) {
-//                            StrokeGuide(
-//                                svgPathData = perfectStroke,
-//                                marginRatio = 0.15f,            // shrink the guide
-//                                modifier = Modifier.fillMaxSize()
-//                            )
-//                        }
-//                        DrawingCanvas(
-//                            modifier = Modifier.fillMaxSize(),
-//                            shouldClear = shouldClearCanvas,
-//                            onStrokeFinished = { userPath ->
-//                                if (pathsAreClose(userPath, perfectPath)) {
-//                                    userPathForMorph = userPath
-//                                    showGuide = false            // ① hide purple loop
-//                                    showMorph = true
-//                                }
-//                            }
-//                        )
-//                        // ③ Morph overlay – only when showMorph == true
-//                        if (showMorph && userPathForMorph != null) {
-//                            MorphOverlay(
-//                                userPath = userPathForMorph!!,
-//                                perfectSvg = perfectStroke,
-//                                onFinished = {
-//                                    showMorph = false            // reset
-//                                    viewModel::clearCanvas
-//                                    showGuide = true             // ready for next try
-//                                },
-//                                modifier = Modifier.fillMaxSize()
-//                            )
-//                        }
-//                    }
-//                }
-//            }
-//            // Prediction results
-//            prediction?.let { pred ->
-//                Card(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(vertical = 8.dp)
-//                ) {
-//                    Column(modifier = Modifier.padding(16.dp)) {
-//                        Text(
-//                            text = "Prediction: ${pred.character}",
-//                            style = MaterialTheme.typography.headlineMedium
-//                        )
-//                        Text(
-//                            text = "Confidence: ${(pred.confidence * 100).toInt()}%",
-//                            style = MaterialTheme.typography.bodyLarge
-//                        )
-//
-//                        // Pronunciation
-//                        Text(
-//                            text = pred.pronunciation,
-//                            style = MaterialTheme.typography.bodyLarge,
-//                            modifier = Modifier.padding(vertical = 8.dp)
-//                        )
-//
-//                        // Show top alternative predictions
-////                        pred.alternativePredictions.take(3).forEach { (index, confidence) ->
-////                            Text(
-////                                text = "Alternative: ${index} (${(confidence * 100).toInt()}%)",
-////                                style = MaterialTheme.typography.bodyMedium
-////                            )
-////                        }
-//                        if (pred.alternativeCharacters.isNotEmpty()) {
-//                            Text(
-//                                text = "Alternative predictions:",
-//                                style = MaterialTheme.typography.titleMedium,
-//                                modifier = Modifier.padding(top = 8.dp)
-//                            )
-//                            pred.alternativeCharacters.take(3).forEach { (char, conf) ->
-//                                Row(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth()
-//                                        .padding(vertical = 4.dp),
-//                                    horizontalArrangement = Arrangement.SpaceBetween
-//                                ) {
-//                                    Text(char, style = MaterialTheme.typography.bodyLarge)
-//                                    Text(
-//                                        "${(conf * 100).toInt()}%",
-//                                        style = MaterialTheme.typography.bodyMedium,
-//                                        color = MaterialTheme.colorScheme.secondary
-//                                    )
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(top = 16.dp),
-//                horizontalArrangement = Arrangement.SpaceEvenly
-//            ) {
-//                Button(onClick = viewModel::clearCanvas) {
-//                    Text("Clear")
-//                }
-//                Button(onClick = viewModel::checkAnswer) {
-//                    Text("Check")
-//                }
-//                Button(onClick = viewModel::nextCharacter) {
-//                    Text("Next")
-//                }
-//            }
-//        }
-//    }
-//}
 @Composable
 fun CharacterPracticeScreen(
     viewModel: CharacterPracticeViewModel = koinViewModel(), // or viewModel()
@@ -239,7 +55,9 @@ fun CharacterPracticeScreen(
     val practiceStep by viewModel.practiceStep.collectAsState()
     val guideAnimationProgress = viewModel.guideAnimationProgress // Direct float
     val userHasStartedTracing by viewModel.userHasStartedTracing.collectAsState() // Collect new state
-    val userDrawnPath by viewModel.userDrawnPath.collectAsState()
+//    val userDrawnPath by viewModel.userDrawnPath.collectAsState()
+    val userDrawnPathForMorph by viewModel.userDrawnPathForMorph.collectAsState()
+    val currentStrokeIndex by viewModel.currentStrokeIndex.collectAsState()
 
     // For the "tap to advance" functionality
     val interactionSource = remember { MutableInteractionSource() }
@@ -335,16 +153,25 @@ fun CharacterPracticeScreen(
                     )
                 }
 
-                // Stroke Guide
-//                if (practiceStep == PracticeStep.ANIMATING_GUIDE || practiceStep == PracticeStep.USER_TRACING_ON_GUIDE) {
-//                    StrokeGuide(
-//                        svgPathData = currentCharacter?.svgPathData,
-//                        practiceStep = practiceStep, // Pass the practice step
-//                        animationProgress = guideAnimationProgress,
-//                        userHasStartedTracing = userHasStartedTracing, // Pass this new state
-//                        marginRatio = 0.25f, // Adjusted for issue 4
-//                        modifier = Modifier.fillMaxSize()
-//                    )
+//                if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
+//                    currentCharacter?.let { char ->
+////                        StrokeGuide(
+////                            strokes = char.strokes,
+////                            animationProgress = guideAnimationProgress,
+////                            userHasStartedTracing = userHasStartedTracing,
+////                            marginToApply = 0.2f,
+////                            modifier = Modifier.fillMaxSize()
+////                        )
+//                        StrokeGuide(
+//                            strokes = char.strokes,
+//                            animationProgress = guideAnimationProgress,
+//                            userHasStartedTracing = userHasStartedTracing,
+//                            currentStrokeIndex = currentStrokeIndex,
+//                            completedStrokes = userDrawnPaths, // Pass completed user strokes
+//                            marginToApply = 0.2f,
+//                            modifier = Modifier.fillMaxSize()
+//                        )
+//                    }
 //                }
                 if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
                     currentCharacter?.let { char ->
@@ -352,13 +179,13 @@ fun CharacterPracticeScreen(
                             strokes = char.strokes,
                             animationProgress = guideAnimationProgress,
                             userHasStartedTracing = userHasStartedTracing,
+                            currentStrokeIndex = currentStrokeIndex,
                             marginToApply = 0.2f,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
 
-                // User Drawing Canvas
                 OptimizedDrawingCanvas(
                     modifier = Modifier.fillMaxSize(),
                     clearSignal = viewModel.clearCanvasSignal,
@@ -369,26 +196,29 @@ fun CharacterPracticeScreen(
                     strokeWidthRatio = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO
                 )
 
-                // Morph Overlay
-                // Morph Overlay or Static Green Correct Character
-                if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && userDrawnPath != null) {
+                val lastUserPath = userDrawnPathForMorph
+                if ((practiceStep == PracticeStep.MORPHING_TRACE_TO_CORRECT || practiceStep == PracticeStep.MORPHING_WRITE_TO_CORRECT) && lastUserPath != null) {
                     MorphOverlay(
-                        userPath = userDrawnPath!!,
-                        perfectStrokes = currentCharacter?.strokes ?: listOf(),
+                        userPath = lastUserPath,
+                        perfectStrokes = listOf(
+                            currentCharacter?.strokes?.getOrNull(
+                                currentStrokeIndex
+                            ) ?: ""
+                        ),
                         onFinished = viewModel::onMorphAnimationFinished,
-                        marginToApply = 0.2f, // Consistent margin
+                        marginToApply = 0.2f,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null) {
-                    // Re-use StrokeGuide to draw the static perfect character in green
                     currentCharacter?.let { char ->
                         StrokeGuide(
                             strokes = char.strokes,
-                            animationProgress = 1f, // Fully drawn
-                            userHasStartedTracing = true, // Treat as if user interacted for static display
-                            staticGuideColor = Color.Green.copy(alpha = 0.0f), // Make underlying static guide invisible
-                            animatedSegmentColor = Color.Green, // This will be the color used for the "segment"
-                            finalStaticSegmentColor = Color.Green, // Ensure it's green
+                            animationProgress = 1f,
+                            userHasStartedTracing = true,
+                            currentStrokeIndex = char.strokes.size,
+                            staticGuideColor = Color.Green.copy(alpha = 0.0f),
+                            animatedSegmentColor = Color.Green,
+                            finalStaticSegmentColor = Color.Green,
                             marginToApply = 0.2f,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -396,30 +226,45 @@ fun CharacterPracticeScreen(
                 }
             }
 
-
-            // Instruction Text
+//            // Instruction Text
+//            Text(
+//                text = when (practiceStep) {
+//                    PracticeStep.INITIAL -> "Loading..."
+//                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace the character" else "Finish tracing"
+//                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> ""
+//                    PracticeStep.AWAITING_BLANK_SLATE -> "Tap to try from memory"
+//                    PracticeStep.USER_WRITING_BLANK -> "Write the character"
+//                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next"
+//                },
+//                style = MaterialTheme.typography.titleMedium,
+//                color = Color.White, // White text for blue background
+//                modifier = Modifier
+//                    .align(Alignment.CenterHorizontally)
+//                    .padding(top = 24.dp) // More space for instruction
+//                    .clickable( // Make "tap to advance" apply here too
+//                        interactionSource = interactionSource,
+//                        indication = null,
+//                        enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
+//                                practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
+//                    ) {
+//                        viewModel.advanceToNextStep()
+//                    }
+//            )
+            // WHAT CHANGED: Instruction text is updated for the new flow.
+            // WHY: To provide clear, context-sensitive instructions to the user at each step.
             Text(
                 text = when (practiceStep) {
                     PracticeStep.INITIAL -> "Loading..."
-                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace the character" else "Finish tracing"
-                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> ""
-                    PracticeStep.AWAITING_BLANK_SLATE -> "Tap to try from memory"
-                    PracticeStep.USER_WRITING_BLANK -> "Write the character"
-                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next"
+                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace stroke ${currentStrokeIndex + 1}" else "Finish tracing"
+                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> "Perfect!"
+                    PracticeStep.AWAITING_BLANK_SLATE -> "Great! Tap to try from memory."
+                    PracticeStep.USER_WRITING_BLANK -> "Write stroke ${currentStrokeIndex + 1} from memory"
+                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Excellent! Tap for the next character."
                 },
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White, // White text for blue background
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(top = 24.dp) // More space for instruction
-                    .clickable( // Make "tap to advance" apply here too
-                        interactionSource = interactionSource,
-                        indication = null,
-                        enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
-                                practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
-                    ) {
-                        viewModel.advanceToNextStep()
-                    }
+                    .padding(top = 24.dp)
             )
 
             Spacer(Modifier.weight(1f))

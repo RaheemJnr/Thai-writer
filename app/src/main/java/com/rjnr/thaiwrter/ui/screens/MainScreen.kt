@@ -24,8 +24,6 @@ fun MainScreen(
     viewModel: MainViewModel = koinViewModel(),
     navController: NavController
 ) {
-   // val uiState by viewModel.uiState.collectAsState()
-
     Scaffold(
         bottomBar = {
             NavigationBar {
