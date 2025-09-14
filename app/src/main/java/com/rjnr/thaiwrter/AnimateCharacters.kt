@@ -116,7 +116,7 @@ fun MorphOverlay(
         // Perfect path (fading in, green)
         drawPath(
             path = perfectCanvasPath.asComposePath(),
-            color = Color.Green, // Or your MaterialTheme.colorScheme.tertiary
+            color =Color(0xFF13C296), // Or your MaterialTheme.colorScheme.tertiary
             style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
             alpha = progress.value
         )

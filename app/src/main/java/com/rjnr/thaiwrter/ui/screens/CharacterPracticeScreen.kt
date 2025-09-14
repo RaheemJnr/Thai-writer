@@ -1,5 +1,8 @@
 package com.rjnr.thaiwrter.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -79,7 +82,8 @@ fun CharacterPracticeScreen(
     }
 
     LaunchedEffect(practiceStep) {
-        val isCrossFading = practiceStep == PracticeStep.CROSS_FADING_TRACE || practiceStep == PracticeStep.CROSS_FADING_WRITE
+        val isCrossFading =
+            practiceStep == PracticeStep.CROSS_FADING_TRACE || practiceStep == PracticeStep.CROSS_FADING_WRITE
         if (isCrossFading) {
             viewModel.crossFadeAnimation.snapTo(0f)
             viewModel.crossFadeAnimation.animateTo(
@@ -87,6 +91,23 @@ fun CharacterPracticeScreen(
                 animationSpec = androidx.compose.animation.core.tween(durationMillis = 600)
             )
             viewModel.onCrossFadeFinished()
+        }
+    }
+    //
+    val rightRevealProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(practiceStep, currentCharacter) {
+        if (practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
+            practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
+        ) {
+            rightRevealProgress.snapTo(0f)
+            rightRevealProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing)
+            )
+        } else {
+            // Ensure we don't accidentally draw any of the green segment in other steps
+            rightRevealProgress.snapTo(0f)
         }
     }
 
@@ -170,26 +191,6 @@ fun CharacterPracticeScreen(
                     )
                 }
 
-//                if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
-//                    currentCharacter?.let { char ->
-////                        StrokeGuide(
-////                            strokes = char.strokes,
-////                            animationProgress = guideAnimationProgress,
-////                            userHasStartedTracing = userHasStartedTracing,
-////                            marginToApply = 0.2f,
-////                            modifier = Modifier.fillMaxSize()
-////                        )
-//                        StrokeGuide(
-//                            strokes = char.strokes,
-//                            animationProgress = guideAnimationProgress,
-//                            userHasStartedTracing = userHasStartedTracing,
-//                            currentStrokeIndex = currentStrokeIndex,
-//                            completedStrokes = userDrawnPaths, // Pass completed user strokes
-//                            marginToApply = 0.2f,
-//                            modifier = Modifier.fillMaxSize()
-//                        )
-//                    }
-//                }
                 if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
                     currentCharacter?.let { char ->
                         StrokeGuide(
@@ -265,25 +266,25 @@ fun CharacterPracticeScreen(
 
                             drawPath(
                                 path = perfectPath,
-                                color = Color.Green,
+                                color = Color(0xFF13C296),
                                 style = strokeStyle,
                                 alpha = crossFadeProgress
                             )
                         }
                     }
-                }
-
-                if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null) {
+                } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null
+                ) {
                     currentCharacter?.let { char ->
+                        // One-shot "RIGHT" animation: write-on the correct character in green
                         StrokeGuide(
                             strokes = char.strokes,
-                            animationProgress = 1f,
-                            userHasStartedTracing = true,
-                            currentStrokeIndex = char.strokes.size,
-                            staticGuideColor = Color.Green.copy(alpha = 0.0f),
-                            animatedSegmentColor = Color.Green,
-                            finalStaticSegmentColor = Color.Green,
+                            animationProgress = rightRevealProgress.value, // 0→1 reveal
+                            userHasStartedTracing = false,                 // don't snap to end; animate
+                            staticGuideColor = Color.Transparent,          // no faint base line
+                            animatedSegmentColor = Color(0xFF13C296),      // punchy "right" green
+                            finalStaticSegmentColor = Color(0xFF13C296),   // remains green when finished
                             marginToApply = 0.2f,
+                            currentStrokeIndex = char.strokes.size,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -292,29 +293,6 @@ fun CharacterPracticeScreen(
             }
 
 //            // Instruction Text
-//            Text(
-//                text = when (practiceStep) {
-//                    PracticeStep.INITIAL -> "Loading..."
-//                    PracticeStep.GUIDE_AND_TRACE -> if (!userHasStartedTracing) "Trace the character" else "Finish tracing"
-//                    PracticeStep.MORPHING_TRACE_TO_CORRECT, PracticeStep.MORPHING_WRITE_TO_CORRECT -> ""
-//                    PracticeStep.AWAITING_BLANK_SLATE -> "Tap to try from memory"
-//                    PracticeStep.USER_WRITING_BLANK -> "Write the character"
-//                    PracticeStep.AWAITING_NEXT_CHARACTER -> "Tap for next"
-//                },
-//                style = MaterialTheme.typography.titleMedium,
-//                color = Color.White, // White text for blue background
-//                modifier = Modifier
-//                    .align(Alignment.CenterHorizontally)
-//                    .padding(top = 24.dp) // More space for instruction
-//                    .clickable( // Make "tap to advance" apply here too
-//                        interactionSource = interactionSource,
-//                        indication = null,
-//                        enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
-//                                practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
-//                    ) {
-//                        viewModel.advanceToNextStep()
-//                    }
-//            )
             // WHAT CHANGED: Instruction text is updated for the new flow.
             // WHY: To provide clear, context-sensitive instructions to the user at each step.
             Text(
@@ -345,7 +323,10 @@ fun CharacterPracticeScreen(
                     .padding(bottom = 16.dp, top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Button(onClick = viewModel::manualClear, enabled = drawingEnabled) { Text("Clear") }
+                Button(
+                    onClick = viewModel::manualClear,
+                    enabled = drawingEnabled
+                ) { Text("Clear") }
                 // "Check" button might be redundant if morphing happens automatically
                 // Button(onClick = viewModel::checkAnswer) { Text("Check") }
                 Button(onClick = viewModel::requestNextCharacter) { Text("Next Char") } // Or "Skip"
