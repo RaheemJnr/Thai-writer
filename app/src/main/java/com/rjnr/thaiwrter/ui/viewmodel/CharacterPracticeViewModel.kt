@@ -1,6 +1,7 @@
 package com.rjnr.thaiwrter.ui.viewmodel
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Path
@@ -131,8 +132,8 @@ class CharacterPracticeViewModel(
                 _guideAnimationProgress.animateTo(
                     targetValue = 1f,
                     animationSpec = tween(
-                        durationMillis = 1500,
-                        easing = LinearEasing
+                        durationMillis = 1700,
+                        easing = CubicBezierEasing(0.22f, 0f, 0.2f, 1f)
                     )
                 )
                 if (isActive && !_userHasStartedTracing.value && _practiceStep.value == PracticeStep.GUIDE_AND_TRACE) {

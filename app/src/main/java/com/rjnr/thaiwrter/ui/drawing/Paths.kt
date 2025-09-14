@@ -44,120 +44,6 @@ fun ComposePath.toAndroid() = this.asAndroidPath()
 fun android.graphics.Path.toCompose() = this.asComposePath()
 
 
-//@Composable
-//fun StrokeGuide(
-//    strokes: List<String>,          // ordered list
-//    animationProgress: Float,
-//    userHasStartedTracing: Boolean,
-//    marginToApply: Float = 0.15f,
-//    staticGuideColor: Color = Color.LightGray.copy(alpha = 0.4f),
-//    animatedSegmentColor: Color = Color(0xFF00579C),
-//    finalStaticSegmentColor: Color = Color(0xFF00579C).copy(alpha = 0.6f),
-//    modifier: Modifier = Modifier
-//) {
-//    if (strokes.isEmpty()) return        // nothing to draw
-//
-//    /* ---------- PARSE & CACHE ---------- */
-//    val parsedPaths = remember(strokes) {
-//        strokes.map { d ->
-//            androidx.compose.ui.graphics.vector.PathParser()
-//                .parsePathString(d)
-//                .toPath()
-//                .asAndroidPath()
-//        }
-//    }
-//
-//    // Combine all raw paths to get a single bounding-box for scaling
-//    val rawBounds = remember(strokes) {
-//        val combined = android.graphics.Path().apply {
-//            parsedPaths.forEach { addPath(it) }
-//        }
-//        android.graphics.RectF().also { combined.computeBounds(it, true) }
-//    }
-//
-//    /* ---------- RENDER ---------- */
-//    val pm = remember { android.graphics.PathMeasure() }
-//    val scaledStroke = remember { android.graphics.Path() }
-//    val animSegment = remember { android.graphics.Path() }
-//
-//    // Compute how many strokes should be fully revealed at current progress
-//    // e.g. progress 0.0-0.33 = stroke1, 0.34-0.66 = stroke2, etc.
-//    val strokesCount = parsedPaths.size
-//    val progPerStroke = 1f / strokesCount
-//    val currentStrokeIdx = (animationProgress / progPerStroke)
-//        .coerceIn(0f, strokesCount - 1f)
-//        .toInt()
-//    val intraStrokeProgress = (animationProgress - currentStrokeIdx * progPerStroke) / progPerStroke
-//
-//    Canvas(modifier) {
-//        /* ------ same scaling math you already had (kept verbatim) ------ */
-//        val padX = size.width * marginToApply
-//        val padY = size.height * marginToApply
-//        val availW = size.width - padX * 2
-//        val availH = size.height - padY * 2
-//        if (rawBounds.width() <= 0 || rawBounds.height() <= 0 ||
-//            availW <= 0 || availH <= 0) return@Canvas
-//
-//        val finalScale = min(availW / rawBounds.width(), availH / rawBounds.height()) * 0.9f
-//        val finalDx = padX + (availW - rawBounds.width() * finalScale) / 2f -
-//                (rawBounds.left * finalScale)
-//        val finalDy = padY + (availH - rawBounds.height() * finalScale) / 2f -
-//                (rawBounds.top * finalScale)
-//        val m = android.graphics.Matrix().apply {
-//            postScale(finalScale, finalScale)
-//            postTranslate(finalDx, finalDy)
-//        }
-//
-//        /* ------ draw faint full guide (all strokes) ------ */
-//        val guidePath = android.graphics.Path().apply {
-//            parsedPaths.forEach { addPath(it) }
-//            transform(m)
-//        }
-//        val strokeWidthPx = DrawingConfig
-//            .getStrokeWidth(min(size.width, size.height))
-//
-//        drawPath(
-//            path = guidePath.asComposePath(),
-//            color = staticGuideColor,
-//            style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-//        )
-//
-//        /* ------ draw animated or final segment ------ */
-//        // Iterate over strokes already “completed”
-//        for (i in 0 until currentStrokeIdx) {
-//            scaledStroke.reset()
-//            scaledStroke.set(parsedPaths[i])
-//            scaledStroke.transform(m)
-//
-//            drawPath(
-//                path = scaledStroke.asComposePath(),
-//                color = finalStaticSegmentColor,
-//                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-//            )
-//        }
-//
-//        // Animate current stroke unless everything is done or user took over
-//        if (currentStrokeIdx < strokesCount) {
-//            scaledStroke.reset()
-//            scaledStroke.set(parsedPaths[currentStrokeIdx])
-//            scaledStroke.transform(m)
-//
-//            pm.setPath(scaledStroke, false)
-//            animSegment.reset()
-//            val segLen = pm.length * intraStrokeProgress
-//            pm.getSegment(0f, segLen, animSegment, true)
-//
-//            val segmentColor = if (userHasStartedTracing)
-//                finalStaticSegmentColor else animatedSegmentColor
-//
-//            drawPath(
-//                path = animSegment.asComposePath(),
-//                color = segmentColor,
-//                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-//            )
-//        }
-//    }
-//}
 
 // WHAT CHANGED: StrokeGuide now takes a `currentStrokeIndex` and `completedStrokes` list.
 // WHY: This allows the guide to be aware of the user's progress. It will animate the `currentStrokeIndex`
@@ -168,7 +54,7 @@ fun StrokeGuide(
     animationProgress: Float,
     userHasStartedTracing: Boolean,
     currentStrokeIndex: Int,
-    marginToApply: Float = 0.15f,
+    marginToApply: Float = 0.2f,
     staticGuideColor: Color = Color.LightGray.copy(alpha = 0.4f),
     animatedSegmentColor: Color = Color(0xFF00579C),
     finalStaticSegmentColor: Color = Color(0xFF00579C).copy(alpha = 0.6f),
@@ -189,7 +75,7 @@ fun StrokeGuide(
         val combined = android.graphics.Path().apply {
             parsedPaths.forEach { addPath(it) }
         }
-        android.graphics.RectF().also { combined.computeBounds(it, true) }
+        RectF().also { combined.computeBounds(it, true) }
     }
 
     val pm = remember { android.graphics.PathMeasure() }
@@ -239,6 +125,7 @@ fun StrokeGuide(
             scaledStroke.set(parsedPaths[currentStrokeIndex])
             scaledStroke.transform(m)
             pm.setPath(scaledStroke, false)
+
             animSegment.reset()
 
             val segmentLength = if (userHasStartedTracing) pm.length else pm.length * animationProgress
