@@ -59,7 +59,7 @@ object DrawingConfig {
      */
     fun getStrokeWidth(canvasSize: Float): Float {
         val width = canvasSize * DEFAULT_STROKE_WIDTH_RATIO
-        return width.coerceIn(MIN_STROKE_WIDTH, MAX_STROKE_WIDTH)
+        return width.coerceIn(MIN_STROKE_WIDTH, MAX_STROKE_WIDTH) - 30
     }
     
     /**

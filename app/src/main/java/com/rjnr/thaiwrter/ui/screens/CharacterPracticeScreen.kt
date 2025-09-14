@@ -1,5 +1,6 @@
 package com.rjnr.thaiwrter.ui.screens
 
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -227,6 +228,7 @@ fun CharacterPracticeScreen(
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val strokeWidthPx =
                             DrawingConfig.getStrokeWidth(min(size.width, size.height))
+                        Log.d("CharacterPracticeScreen", "Stroke width: $strokeWidthPx")
                         val strokeStyle = Stroke(
                             width = strokeWidthPx,
                             cap = StrokeCap.Round,
