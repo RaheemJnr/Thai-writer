@@ -18,13 +18,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -294,9 +297,6 @@ fun CharacterPracticeScreen(
 
             }
 
-//            // Instruction Text
-            // WHAT CHANGED: Instruction text is updated for the new flow.
-            // WHY: To provide clear, context-sensitive instructions to the user at each step.
             Text(
                 text = when (practiceStep) {
                     PracticeStep.INITIAL -> "Loading..."
@@ -311,11 +311,31 @@ fun CharacterPracticeScreen(
                     .align(Alignment.CenterHorizontally)
                     .padding(top = 24.dp)
             )
+            currentCharacter?.let {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text(
+                        text = it.pronunciation,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    // Add the sound button
+                    IconButton(
+                        onClick = { viewModel.playCurrentCharacterSound() },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Play pronunciation",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
 
             Spacer(Modifier.weight(1f))
-
-            // ML Prediction display (your existing code, can be kept)
-            // viewModel.prediction.collectAsState().value?.let { pred -> ... }
 
 
             // Bottom Buttons

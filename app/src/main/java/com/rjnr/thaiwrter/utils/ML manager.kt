@@ -9,6 +9,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Rect
 import android.util.Log
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
 import androidx.core.graphics.scale
 import com.rjnr.thaiwrter.data.models.Point
@@ -20,7 +21,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.concurrent.locks.ReentrantLock
-import androidx.core.graphics.createBitmap
 
 data class CharacterPrediction(
     val characterIndex: Int,
@@ -222,8 +222,16 @@ class MLStrokeValidator(private val context: Context) {
         fun getPronunciation(index: Int): String =
             THAI_CHARACTERS.getOrNull(index)?.pronunciation ?: "?"
 
-        val ALL_CHARS: List<Pair<String, String>> =
-            THAI_CHARACTERS.map { it.character to it.pronunciation }
+        val ALL_CHARS: List<ThaiCharacter> = THAI_CHARACTERS.map {
+            ThaiCharacter(
+                id = it.id,
+                character = it.character,
+                pronunciation = it.pronunciation,
+                strokes = it.strokes,
+                difficulty = it.difficulty,
+                category = it.category
+            )
+        }
 
         fun randomCharacter(): ThaiCharacter = THAI_CHARACTERS.random()
     }
