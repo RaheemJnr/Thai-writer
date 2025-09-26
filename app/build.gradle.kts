@@ -1,3 +1,5 @@
+import com.android.build.gradle.ProguardFiles.getDefaultProguardFile
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -60,6 +62,12 @@ dependencies {
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
+
+
+    implementation(libs.tensorflow.tensorflow.lite)
+    implementation(libs.tensorflow.lite.support)
+    implementation (libs.tensorflow.lite.metadata)
+
 
 
     //core android

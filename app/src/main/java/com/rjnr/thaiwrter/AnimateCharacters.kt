@@ -1,116 +1,126 @@
-import android.graphics.Typeface
-import android.text.TextPaint
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
+import kotlinx.coroutines.delay
 import kotlin.math.min
 
+
 @Composable
-fun AnimatedLetters() {
-    val letters = listOf('A', 'B', 'C', 'D', 'E')
-    var currentLetterIndex by remember { mutableStateOf(0) }
-
-    // Declare 'letter' before using it
-    val letter = letters[currentLetterIndex]
-
-    // Initialize animation progress
-    val animationProgress = remember { Animatable(0f) }
-
-    // Start the animation when 'letter' changes
-    LaunchedEffect(letter) {
-        animationProgress.snapTo(0f)
-        animationProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 3000, easing = LinearEasing)
-        )
-        // Update 'currentLetterIndex' after animation completes
-        if (currentLetterIndex < letters.size - 1) {
-            currentLetterIndex++
-        } else {
-            currentLetterIndex = 0
-        }
+fun MorphOverlay(
+    userPath: Path,
+    perfectStrokes: List<String>,
+    durationMs: Int = 800,   // Slightly longer for better visual
+    modifier: Modifier = Modifier,
+    marginToApply: Float = 0.25f, // Consistent margin
+    onFinished: () -> Unit
+) {
+    if (perfectStrokes.isEmpty()) {
+        LaunchedEffect(Unit) { onFinished() }
+        return
     }
 
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-        val minDimension = min(canvasWidth, canvasHeight)
-        val letterSize = minDimension * 0.8f
+    /* -------- fuse strokes -------- */
+    val targetPath = remember(perfectStrokes) {
+        android.graphics.Path().apply {
+            perfectStrokes.forEach { d ->
+                addPath(
+                    androidx.compose.ui.graphics.vector.PathParser()
+                        .parsePathString(d)
+                        .toPath()
+                        .asAndroidPath()
+                )
+            }
+        }
+    }
+    // ... rest of your MorphOverlay logic is good ...
+    // Make sure the scaling logic (m matrix) inside Canvas is robust
 
-        // Get the path for the current letter
-        val androidPath = getLetterPath(letter, letterSize)
-
-        // Compute bounds of the path
-        val bounds = android.graphics.RectF()
-        androidPath.computeBounds(bounds, true)
-
-        // Center the path within the canvas
-        val offsetX = (canvasWidth - bounds.width()) / 2 - bounds.left
-        val offsetY = (canvasHeight - bounds.height()) / 2 - bounds.top
-        val matrix = android.graphics.Matrix()
-        matrix.setTranslate(offsetX, offsetY)
-        androidPath.transform(matrix)
-
-        // Convert to Compose Path
-        val letterPath = android.graphics.Path(androidPath)
-
-        // Define dashed stroke for tracing style
-        val dashedStroke = Stroke(
-            width = 5f,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), phase = 0f)
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        progress.animateTo(
+            1f,
+            animationSpec = tween(durationMs, easing = FastOutSlowInEasing)
         )
+        delay(200) // Small delay to let user see the green before it disappears or advances
+        onFinished()
+    }
+    val r = remember(targetPath) {
+        android.graphics.RectF().also { targetPath.computeBounds(it, true) }
+    }
 
-        // Draw the letter in tracing style (dashed lines)
+
+    Canvas(modifier) {
+        val strokePx = DrawingConfig.getStrokeWidth(
+            min(
+                size.width,
+                size.height
+            )
+        ) // Use config instead of hardcoded
+
+
+        // Consistent Scaling with StrokeGuide
+        val r = android.graphics.RectF().also { targetPath.computeBounds(it, true) }
+        val padX = size.width * marginToApply
+        val padY = size.height * marginToApply
+        val availW = size.width - padX * 2
+        val availH = size.height - padY * 2
+
+        if (r.width() <= 0 || r.height() <= 0 || availW <= 0 || availH <= 0) {
+            // Handle invalid bounds or available space, perhaps by calling onFinished early
+            onFinished()
+            return@Canvas
+        }
+
+
+        val scaleFactor = 0.9f // Consistent additional factor
+        val finalScale = min(availW / r.width(), availH / r.height()) * scaleFactor
+
+
+        val scaledWidth = r.width() * finalScale
+        val scaledHeight = r.height() * finalScale
+        val finalDx = padX + (availW - scaledWidth) / 2f - (r.left * finalScale)
+        val finalDy = padY + (availH - scaledHeight) / 2f - (r.top * finalScale)
+
+        val m =
+            android.graphics.Matrix().apply {
+                postScale(finalScale, finalScale)
+                postTranslate(finalDx, finalDy)
+            }
+
+        val perfectCanvasPath =
+            android.graphics.Path().apply {
+                set(targetPath); transform(m)
+            }
+
+
+        // User path (fading out)
         drawPath(
-            path = letterPath.asComposePath(),
-            color = Color.Gray,
-            style = dashedStroke
+            path = userPath,
+            color = Color.Black,
+            style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            alpha = 1f - progress.value
         )
-
-        // Animate the circle along the path
-        val pathMeasure = android.graphics.PathMeasure(androidPath, false)
-        val totalLength = pathMeasure.length
-        val position = floatArrayOf(0f, 0f)
-
-        pathMeasure.getPosTan(totalLength * animationProgress.value, position, null)
-        if (animationProgress.value < 1f) {
-            // Draw the moving circle
-            drawCircle(
-                color = Color.Red,
-                radius = 10f,
-                center = Offset(position[0], position[1])
-            )
-        } else {
-            // Optionally, redraw the letter in solid black when animation is complete
-            drawPath(
-                path = letterPath.asComposePath(),
-                color = Color.Black,
-                style = Stroke(width = 5f)
-            )
-        }
+        // Perfect path (fading in, green)
+        drawPath(
+            path = perfectCanvasPath.asComposePath(),
+            color =Color(0xFF13C296), // Or your MaterialTheme.colorScheme.tertiary
+            style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            alpha = progress.value
+        )
     }
 }
 
-fun getLetterPath(letter: Char, size: Float): android.graphics.Path {
-    val textPaint = TextPaint().apply {
-        textSize = size
-        typeface = Typeface.DEFAULT_BOLD
-    }
-    val path = android.graphics.Path()
-    textPaint.getTextPath(letter.toString(), 0, 1, 0f, 0f, path)
-    return path
-}
+
