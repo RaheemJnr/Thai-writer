@@ -43,231 +43,105 @@ fun FirstPath(modifier: Modifier = Modifier) {
 fun ComposePath.toAndroid() = this.asAndroidPath()
 fun android.graphics.Path.toCompose() = this.asComposePath()
 
-//@Composable
-//fun StrokeGuide(
-//    svgPathData: String?,
-//    animationProgress: Float, // 0f to 1f for drawing animation
-//    practiceStep: PracticeStep,     // Pass the current practice step
-//    userHasStartedTracing: Boolean, // From ViewModel
-//    marginRatio: Float = 0.25f,
-//    color: Color = Color(0xFF5B4CE0), // Purple-ish
-//    staticGuideColor: Color = Color.DarkGray.copy(alpha = 0.8f), // Color for static guide
-//    modifier: Modifier = Modifier
-//
-//) {
-//    if (svgPathData.isNullOrEmpty()) {
-//        // Optionally draw a placeholder or nothing
-//        return
-//    }
-//
-//    val rawPath = remember(svgPathData) {
-//        androidx.compose.ui.graphics.vector.PathParser()
-//            .parsePathString(svgPathData)
-//            .toPath()
-//            .asAndroidPath()
-//    }
-//    val rawBounds = remember(svgPathData) { // Recompute if svgPathData changes
-//        RectF().also { rawPath.computeBounds(it, true) }
-//    }
-//
-//    val pm = remember { android.graphics.PathMeasure() }
-//    val pathScaledAndTransformed =
-//        remember { android.graphics.Path() } // For the final display path
-//    val animatedSegment = remember { android.graphics.Path() }
-//
-////    Canvas(modifier) {
-////        val padX = size.width * marginRatio
-////        val padY = size.height * marginRatio
-////        val availW = size.width - padX * 2
-////        val availH = size.height - padY * 2
-////
-////        val scale = min(availW / rawBounds.width(), availH / rawBounds.height())
-////        val dx = padX + (availW - rawBounds.width() * scale) / 2f - rawBounds.left * scale
-////        val dy = padY + (availH - rawBounds.height() * scale) / 2f - rawBounds.top * scale
-////
-////        val m = android.graphics.Matrix().apply {
-////            postScale(scale, scale)
-////            postTranslate(dx, dy)
-////        }
-////
-////        pathScaledAndTransformed.reset() // Clear before setting
-////        pathScaledAndTransformed.set(rawPath)
-////        pathScaledAndTransformed.transform(m)
-////
-////        val strokePx = 0.06f * min(size.width, size.height) // Consistent stroke width
-////
-////        // Animate drawing the guide
-////        if (animationProgress < 1.0f && !isTracingMode) { // Only animate if not yet fully drawn and not in static tracing mode
-////            pm.setPath(pathScaledAndTransformed, false)
-////            animatedSegment.reset()
-////            pm.getSegment(0f, pm.length * animationProgress, animatedSegment, true)
-////            drawPath(
-////                animatedSegment.asComposePath(),
-////                color = color,
-////                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-////            )
-////        }
-////
-////        // Show static guide if animation is complete OR if in tracing mode (even if animation was quick)
-////        if (animationProgress >= 1.0f || isTracingMode) {
-////            drawPath(
-////                pathScaledAndTransformed.asComposePath(),
-////                color = if (isTracingMode) staticGuideColor else color, // Use a dimmer color for static tracing guide
-////                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-////            )
-////        }
-////    }
-//    Canvas(modifier) {
-//        val padX = size.width * marginRatio // Use marginToApply for padding
-//        val padY = size.height * marginRatio
-//        val availW = size.width - padX * 2
-//        val availH = size.height - padY * 2
-//
-//        if (rawBounds.width() <= 0 || rawBounds.height() <= 0 || availW <= 0 || availH <= 0) return@Canvas
-//
-//
-//        val scaleFactor = 0.9f // Additional factor to ensure it doesn't touch edges after padding
-//        val finalScale = min(availW / rawBounds.width(), availH / rawBounds.height()) * scaleFactor
-//
-//
-//        val scaledWidth = rawBounds.width() * finalScale
-//        val scaledHeight = rawBounds.height() * finalScale
-//
-//        // Calculate translation to center the scaled path within the available padded area
-//        val finalDx = padX + (availW - scaledWidth) / 2f - (rawBounds.left * finalScale)
-//        val finalDy = padY + (availH - scaledHeight) / 2f - (rawBounds.top * finalScale)
-//
-//
-//        val finalM = android.graphics.Matrix().apply {
-//            postScale(finalScale, finalScale)
-//            postTranslate(finalDx, finalDy)
-//        }
-//
-//
-//        pathScaledAndTransformed.reset()
-//        pathScaledAndTransformed.set(rawPath)
-//        pathScaledAndTransformed.transform(finalM)
-//
-//        val strokePx = 0.07f * min(size.width, size.height) // Slightly thicker for visibility
-//
-//        when {
-//            // Looping/Initial Guide Animation
-//            practiceStep == PracticeStep.ANIMATING_GUIDE && !userHasStartedTracing -> {
-//                pm.setPath(pathScaledAndTransformed, false)
-//                animatedSegment.reset()
-//                if (pm.length > 0) { // Ensure path measure has a valid path
-//                    pm.getSegment(0f, pm.length * animationProgress, animatedSegment, true)
-//                    drawPath(
-//                        animatedSegment.asComposePath(),
-//                        color = color,
-//                        style = Stroke(
-//                            width = strokePx,
-//                            cap = StrokeCap.Round,
-//                            join = StrokeJoin.Round
-//                        )
-//                    )
-//                }
-//            }
-//            // Static Guide for User Tracing (after animation or if user started tracing)
-//            practiceStep == PracticeStep.USER_TRACING_ON_GUIDE || (practiceStep == PracticeStep.ANIMATING_GUIDE && userHasStartedTracing) -> {
-//                drawPath(
-//                    pathScaledAndTransformed.asComposePath(),
-//                    color = staticGuideColor,
-//                    style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
-//                )
-//            }
-//        }
-//    }
-//}
 
+
+// WHAT CHANGED: StrokeGuide now takes a `currentStrokeIndex` and `completedStrokes` list.
+// WHY: This allows the guide to be aware of the user's progress. It will animate the `currentStrokeIndex`
+// and draw the `completedStrokes` as static, completed guides. This is crucial for building the character visually.
 @Composable
 fun StrokeGuide(
-    svgPathData: String?,
-    animationProgress: Float,       // Current progress of the looping animation (0f to 1f)
-    userHasStartedTracing: Boolean, // From ViewModel
-    marginToApply: Float = 0.15f,   // Adjusted from previous, this is the overall padding
-    staticGuideColor: Color = Color.LightGray.copy(alpha = 0.4f), // Faint static guide
-    animatedSegmentColor: Color = Color(0xFF00579C), // Darker blue for animation (like video)
-    finalStaticSegmentColor: Color = Color(0xFF00579C).copy(alpha = 0.6f), // Color of guide once user starts tracing
+    strokes: List<String>,
+    animationProgress: Float,
+    userHasStartedTracing: Boolean,
+    currentStrokeIndex: Int,
+    marginToApply: Float = 0.2f,
+    staticGuideColor: Color = Color.LightGray.copy(alpha = 0.4f),
+    animatedSegmentColor: Color = Color(0xFF00579C),
+    finalStaticSegmentColor: Color = Color(0xFF00579C).copy(alpha = 0.6f),
     modifier: Modifier = Modifier
 ) {
-    if (svgPathData.isNullOrEmpty()) return
+    if (strokes.isEmpty()) return
 
-    val rawPath = remember(svgPathData) {
-        androidx.compose.ui.graphics.vector.PathParser()
-            .parsePathString(svgPathData)
-            .toPath()
-            .asAndroidPath()
+    val parsedPaths = remember(strokes) {
+        strokes.map { d ->
+            androidx.compose.ui.graphics.vector.PathParser()
+                .parsePathString(d)
+                .toPath()
+                .asAndroidPath()
+        }
     }
-    val rawBounds = remember(svgPathData) {
-        android.graphics.RectF().also { rawPath.computeBounds(it, true) }
+
+    val rawBounds = remember(strokes) {
+        val combined = android.graphics.Path().apply {
+            parsedPaths.forEach { addPath(it) }
+        }
+        RectF().also { combined.computeBounds(it, true) }
     }
 
     val pm = remember { android.graphics.PathMeasure() }
-    val pathScaledAndTransformed = remember { android.graphics.Path() }
-    val animatedSegmentPath = remember { android.graphics.Path() }
+    val scaledStroke = remember { android.graphics.Path() }
+    val animSegment = remember { android.graphics.Path() }
 
     Canvas(modifier) {
-        // --- Sizing and Centering Logic (ensure this is robust) ---
         val padX = size.width * marginToApply
         val padY = size.height * marginToApply
         val availW = size.width - padX * 2
         val availH = size.height - padY * 2
-
         if (rawBounds.width() <= 0 || rawBounds.height() <= 0 || availW <= 0 || availH <= 0) return@Canvas
 
-        val scaleFactor = 0.9f // Small internal factor to prevent touching edges
-        val finalScale = min(availW / rawBounds.width(), availH / rawBounds.height()) * scaleFactor
-        val scaledWidth = rawBounds.width() * finalScale
-        val scaledHeight = rawBounds.height() * finalScale
-        val finalDx = padX + (availW - scaledWidth) / 2f - (rawBounds.left * finalScale)
-        val finalDy = padY + (availH - scaledHeight) / 2f - (rawBounds.top * finalScale)
-
+        val finalScale = min(availW / rawBounds.width(), availH / rawBounds.height()) * 0.9f
+        val finalDx = padX + (availW - rawBounds.width() * finalScale) / 2f - (rawBounds.left * finalScale)
+        val finalDy = padY + (availH - rawBounds.height() * finalScale) / 2f - (rawBounds.top * finalScale)
         val m = android.graphics.Matrix().apply {
-                postScale(finalScale, finalScale)
-                postTranslate(finalDx, finalDy)
-            }
+            postScale(finalScale, finalScale)
+            postTranslate(finalDx, finalDy)
+        }
 
+        val strokeWidthPx = DrawingConfig.getStrokeWidth(min(size.width, size.height))
 
-        pathScaledAndTransformed.reset()
-        pathScaledAndTransformed.set(rawPath)
-        pathScaledAndTransformed.transform(m)
-        // --- End Sizing ---
-
-        val strokeWidthPx = DrawingConfig.getStrokeWidth(min(size.width, size.height)) // Use config instead of hardcoded
-
-        // 1. Draw the full, faint static guide path underneath
+        val fullGuidePath = android.graphics.Path().apply {
+            parsedPaths.forEach { addPath(it) }
+            transform(m)
+        }
         drawPath(
-            path = pathScaledAndTransformed.asComposePath(),
+            path = fullGuidePath.asComposePath(),
             color = staticGuideColor,
             style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
-        // 2. Draw the animated segment or the final static segment on top
-        pm.setPath(pathScaledAndTransformed, false)
-        if (pm.length > 0) {
-            animatedSegmentPath.reset()
-            val currentDisplayProgress = if (userHasStartedTracing) 1f else animationProgress
-            pm.getSegment(0f, pm.length * currentDisplayProgress, animatedSegmentPath, true)
+        for (i in 0 until currentStrokeIndex) {
+            scaledStroke.reset()
+            scaledStroke.set(parsedPaths[i])
+            scaledStroke.transform(m)
+            drawPath(
+                path = scaledStroke.asComposePath(),
+                color = finalStaticSegmentColor,
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+        }
 
-            val segmentColor = if (userHasStartedTracing) {
-                finalStaticSegmentColor // Guide color after user interaction
-            } else {
-                animatedSegmentColor // Looping animation color
-            }
+        if (currentStrokeIndex < strokes.size) {
+            scaledStroke.reset()
+            scaledStroke.set(parsedPaths[currentStrokeIndex])
+            scaledStroke.transform(m)
+            pm.setPath(scaledStroke, false)
+
+            animSegment.reset()
+
+            val segmentLength = if (userHasStartedTracing) pm.length else pm.length * animationProgress
+            pm.getSegment(0f, segmentLength, animSegment, true)
+
+            val segmentColor = if (userHasStartedTracing) finalStaticSegmentColor else animatedSegmentColor
 
             drawPath(
-                path = animatedSegmentPath.asComposePath(),
+                path = animSegment.asComposePath(),
                 color = segmentColor,
-                style = Stroke(
-                    width = strokeWidthPx,
-                    cap = StrokeCap.Round,
-                    join = StrokeJoin.Round
-                )
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
             )
         }
     }
 }
+
 
 
 /* ---------- Cheap similarity check ---------- */
@@ -362,6 +236,8 @@ fun pathsAreClose(user: ComposePath, perfect: ComposePath, threshold: Float = 0.
     val b = perfect.normalised().toMask()
     return bitmapSimilarity(a, b) >= threshold
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
