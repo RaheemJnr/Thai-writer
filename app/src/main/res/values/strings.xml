@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Thai Wrter</string>
+    <string name="audio_attribution_label">Character Pronunciation</string>
 </resources>
