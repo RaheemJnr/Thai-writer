@@ -78,7 +78,7 @@ class CharacterPracticeViewModel(
 
     init {
         // Load sounds when the ViewModel is created
-        soundManager.loadSoundsForCharacters(allCharacters)
+        //soundManager.loadSoundsForCharacters(allCharacters)
         // Load the first character when ViewModel is created
         initialLoadAndPrepareCharacter()
     }
@@ -97,7 +97,7 @@ class CharacterPracticeViewModel(
     }
 
     private fun initialLoadAndPrepareCharacter() {
-        _currentCharacter.value = allCharacters.randomOrNull()
+        _currentCharacter.value = allCharacters.find { it.character == "ก" } ?: allCharacters.randomOrNull()
         _currentCharacter.value?.let {
             setupForNewCharacter()
         }

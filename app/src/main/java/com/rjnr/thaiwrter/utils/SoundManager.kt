@@ -99,6 +99,9 @@ class SoundManager(private val context: Context) {
         // Create a new MediaPlayer instance for the specific sound
         mediaPlayer = MediaPlayer.create(context, resId)
 
+        Log.d("SoundManager", "Audio duration: ${mediaPlayer?.duration}ms")
+
+
         // Set a listener to release resources once playback is complete
         mediaPlayer?.setOnCompletionListener {
             Log.d("SoundManager", "Playback complete. Releasing MediaPlayer.")
