@@ -2,13 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <attribution
-        android:label="@string/audio_attribution_label"
-        android:tag="pronunciation_audio" />
 
     <application
         android:name=".ThaiLanguageApp"
         android:allowBackup="true"
+        android:attributionTags="pronunciation_audio"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
