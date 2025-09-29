@@ -231,7 +231,7 @@ class MLStrokeValidator(private val context: Context) {
                 difficulty = it.difficulty,
                 category = it.category
             )
-        }
+        }.sortedBy { it.id }
 
         fun randomCharacter(): ThaiCharacter = THAI_CHARACTERS.random()
     }

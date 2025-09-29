@@ -42,7 +42,13 @@ class CharacterPracticeViewModel(
     private val mlStrokeValidator: MLStrokeValidator,
     private val soundManager: SoundManager
 ) : ViewModel() {
+
+    // all characters
     private val allCharacters = MLStrokeValidator.ALL_CHARS
+
+    //current character index
+    private var currentCharacterIndex = -1
+
 
     private val _currentCharacter = MutableStateFlow<ThaiCharacter?>(null)
     val currentCharacter = _currentCharacter.asStateFlow()
@@ -53,13 +59,10 @@ class CharacterPracticeViewModel(
     private val _guideAnimationProgress = Animatable(0f) // For one-shot guide animation
     val guideAnimationProgress: Float get() = _guideAnimationProgress.value
 
-    // WHAT CHANGED: This state now holds the path specifically for the cross-fade animation.
-    // WHY: This isolates the path being animated, preventing it from being rendered incorrectly in other states.
+
     private val _pathForCrossFade = MutableStateFlow<Path?>(null)
     val pathForCrossFade: StateFlow<Path?> = _pathForCrossFade.asStateFlow()
 
-    // WHAT CHANGED: Added a new Animatable for the cross-fade effect.
-    // WHY: This decouples the guide animation from the feedback animation, allowing them to run independently with different durations and effects.
     val crossFadeAnimation = Animatable(0f)
 
     // To trigger clearing the DrawingCanvas from the ViewModel
@@ -70,8 +73,6 @@ class CharacterPracticeViewModel(
     private val _userHasStartedTracing = MutableStateFlow(false)
     val userHasStartedTracing: StateFlow<Boolean> = _userHasStartedTracing.asStateFlow()
 
-    // WHAT CHANGED: Added currentStrokeIndex to track progress within a multi-stroke character.
-    // WHY: This is the core state variable that tells the UI which stroke to animate, guide, and check.
     private val _currentStrokeIndex = MutableStateFlow(0)
     val currentStrokeIndex: StateFlow<Int> = _currentStrokeIndex.asStateFlow()
 
@@ -96,15 +97,24 @@ class CharacterPracticeViewModel(
         _practiceStep.value = PracticeStep.GUIDE_AND_TRACE
     }
 
+    private fun loadNextCharacter() {
+        currentCharacterIndex++
+        // Loop back to the start if we've reached the end of the list
+        if (currentCharacterIndex >= allCharacters.size) {
+            currentCharacterIndex = 0
+        }
+        _currentCharacter.value = allCharacters[currentCharacterIndex]
+    }
+
     private fun initialLoadAndPrepareCharacter() {
-        _currentCharacter.value = allCharacters.find { it.character == "ก" } ?: allCharacters.randomOrNull()
+        loadNextCharacter()
         _currentCharacter.value?.let {
             setupForNewCharacter()
         }
     }
 
     fun loadNextCharacterAndPrepareAnimation() {
-        _currentCharacter.value = allCharacters.randomOrNull()
+        loadNextCharacter()
         _currentCharacter.value?.let {
             setupForNewCharacter()
         }
@@ -157,9 +167,6 @@ class CharacterPracticeViewModel(
         }
     }
 
-    // WHAT CHANGED: This function now handles one stroke at a time.
-    // WHY: The core of the new logic. When a user finishes a stroke, we add it to our list
-    // and transition to the morphing state. We don't wait for the full character.
     fun onUserStrokeFinished(path: Path) {
         viewModelScope.launch { _clearCanvasSignal.emit(Unit) }
 
@@ -187,8 +194,6 @@ class CharacterPracticeViewModel(
     }
 
 
-    // WHAT CHANGED: New function to manage the cross-fade animation lifecycle.
-    // WHY: This encapsulates the animation logic, making it reusable and easier to manage. It animates and then calls the function to advance the state.
     private fun triggerCrossFadeAnimation() {
         viewModelScope.launch {
             crossFadeAnimation.snapTo(0f)
@@ -200,8 +205,6 @@ class CharacterPracticeViewModel(
         }
     }
 
-    // WHAT CHANGED: This function is now called after the cross-fade animation completes.
-    // WHY: This ensures the state progresses only after the feedback animation is fully shown to the user.
     fun onCrossFadeFinished() {
         val char = _currentCharacter.value ?: return
         val step = _practiceStep.value
@@ -231,9 +234,6 @@ class CharacterPracticeViewModel(
         }
     }
 
-    // WHAT CHANGED: New transitions for the stroke-by-stroke flow.
-    // WHY: This function now handles moving between strokes within the same character,
-    // as well as advancing to the next character after completion.
     fun advanceToNextStep() {
         viewModelScope.launch {
             when (_practiceStep.value) {
