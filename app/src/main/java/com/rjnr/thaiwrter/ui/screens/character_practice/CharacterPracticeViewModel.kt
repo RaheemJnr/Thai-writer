@@ -1,4 +1,4 @@
-package com.rjnr.thaiwrter.ui.viewmodel
+package com.rjnr.thaiwrter.ui.screens.character_practice
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing

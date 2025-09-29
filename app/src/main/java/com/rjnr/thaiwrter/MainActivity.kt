@@ -15,8 +15,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.rjnr.thaiwrter.ui.navigation.NavDestinations
-import com.rjnr.thaiwrter.ui.screens.CharacterPracticeScreen
-import com.rjnr.thaiwrter.ui.screens.MainScreen
+import com.rjnr.thaiwrter.ui.screens.character_practice.CharacterPracticeScreen
+import com.rjnr.thaiwrter.ui.screens.main.MainScreen
 import com.rjnr.thaiwrter.ui.screens.ProgressScreen
 import com.rjnr.thaiwrter.ui.theme.ThaiWrterTheme
 

@@ -2,8 +2,8 @@ package com.rjnr.thaiwrter.di
 
 import com.rjnr.thaiwrter.data.local.AppDatabase
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
-import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
-import com.rjnr.thaiwrter.ui.viewmodel.MainViewModel
+import com.rjnr.thaiwrter.ui.screens.character_practice.CharacterPracticeViewModel
+import com.rjnr.thaiwrter.ui.screens.main.MainViewModel
 import com.rjnr.thaiwrter.utils.DatabaseInitializer
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import com.rjnr.thaiwrter.utils.SoundManager

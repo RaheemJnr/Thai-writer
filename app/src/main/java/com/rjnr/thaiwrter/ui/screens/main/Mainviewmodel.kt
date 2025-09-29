@@ -1,9 +1,8 @@
-package com.rjnr.thaiwrter.ui.viewmodel
+package com.rjnr.thaiwrter.ui.screens.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 

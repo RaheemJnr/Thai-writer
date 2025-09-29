@@ -1,4 +1,4 @@
-package com.rjnr.thaiwrter.ui.screens
+package com.rjnr.thaiwrter.ui.screens.main
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.navigation.NavDestinations
-import com.rjnr.thaiwrter.ui.viewmodel.MainViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable

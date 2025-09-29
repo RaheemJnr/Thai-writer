@@ -1,4 +1,4 @@
-package com.rjnr.thaiwrter.ui.screens
+package com.rjnr.thaiwrter.ui.screens.character_practice
 
 import android.graphics.RectF
 import android.util.Log
@@ -54,8 +54,7 @@ import com.rjnr.thaiwrter.data.models.ThaiCharacter
 import com.rjnr.thaiwrter.ui.drawing.DrawingConfig
 import com.rjnr.thaiwrter.ui.drawing.OptimizedDrawingCanvas
 import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
-import com.rjnr.thaiwrter.ui.viewmodel.CharacterPracticeViewModel
-import com.rjnr.thaiwrter.ui.viewmodel.PracticeStep
+import com.rjnr.thaiwrter.ui.screens.conponents.StageProgressIndicator
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import io.eyram.iconsax.IconSax
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -98,7 +97,7 @@ fun CharacterPracticeScreen(
             viewModel.crossFadeAnimation.snapTo(0f)
             viewModel.crossFadeAnimation.animateTo(
                 targetValue = 1f,
-                animationSpec = androidx.compose.animation.core.tween(durationMillis = 600)
+                animationSpec = tween(durationMillis = 600)
             )
             viewModel.onCrossFadeFinished()
         }
@@ -209,6 +208,13 @@ private fun ContentUI(
         Text(
             text = currentCharacter.pronunciation,
             style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+        Spacer(Modifier.height(16.dp)) // Add some space
+
+        // START: Add the new StageProgressIndicator here
+        StageProgressIndicator(
+            practiceStep = practiceStep,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 

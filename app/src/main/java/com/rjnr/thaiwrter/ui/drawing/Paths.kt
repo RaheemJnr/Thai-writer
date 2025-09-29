@@ -24,25 +24,10 @@ import kotlin.math.min
 import android.graphics.Canvas as AndroidCanvas
 import androidx.compose.ui.graphics.Path as ComposePath
 
-data class StrokeSpec(
-    val pathData: String,           // raw SVG "d" string
-    val strokeWidth: Float = 14f
-)
-
-
-@Composable
-fun FirstPath(modifier: Modifier = Modifier) {
-//    val strokePath = remember(testStroke.pathData) {
-//        androidx.compose.ui.graphics.vector.PathParser()    // UI-graphics 1.7+
-//            .parsePathString(testStroke.pathData)
-//            .toPath()
-//    }
-}
 
 /** Compose → Android path helpers */
 fun ComposePath.toAndroid() = this.asAndroidPath()
 fun android.graphics.Path.toCompose() = this.asComposePath()
-
 
 
 // WHAT CHANGED: StrokeGuide now takes a `currentStrokeIndex` and `completedStrokes` list.
@@ -90,8 +75,10 @@ fun StrokeGuide(
         if (rawBounds.width() <= 0 || rawBounds.height() <= 0 || availW <= 0 || availH <= 0) return@Canvas
 
         val finalScale = min(availW / rawBounds.width(), availH / rawBounds.height()) * 0.9f
-        val finalDx = padX + (availW - rawBounds.width() * finalScale) / 2f - (rawBounds.left * finalScale)
-        val finalDy = padY + (availH - rawBounds.height() * finalScale) / 2f - (rawBounds.top * finalScale)
+        val finalDx =
+            padX + (availW - rawBounds.width() * finalScale) / 2f - (rawBounds.left * finalScale)
+        val finalDy =
+            padY + (availH - rawBounds.height() * finalScale) / 2f - (rawBounds.top * finalScale)
         val m = android.graphics.Matrix().apply {
             postScale(finalScale, finalScale)
             postTranslate(finalDx, finalDy)
@@ -116,7 +103,11 @@ fun StrokeGuide(
             drawPath(
                 path = scaledStroke.asComposePath(),
                 color = finalStaticSegmentColor,
-                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                style = Stroke(
+                    width = strokeWidthPx,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
             )
         }
 
@@ -128,20 +119,25 @@ fun StrokeGuide(
 
             animSegment.reset()
 
-            val segmentLength = if (userHasStartedTracing) pm.length else pm.length * animationProgress
+            val segmentLength =
+                if (userHasStartedTracing) pm.length else pm.length * animationProgress
             pm.getSegment(0f, segmentLength, animSegment, true)
 
-            val segmentColor = if (userHasStartedTracing) finalStaticSegmentColor else animatedSegmentColor
+            val segmentColor =
+                if (userHasStartedTracing) finalStaticSegmentColor else animatedSegmentColor
 
             drawPath(
                 path = animSegment.asComposePath(),
                 color = segmentColor,
-                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                style = Stroke(
+                    width = strokeWidthPx,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
             )
         }
     }
 }
-
 
 
 /* ---------- Cheap similarity check ---------- */
@@ -189,20 +185,6 @@ private fun ComposePath.normalised(): Path {
     }
 }
 
-//private fun Path.toMask(): Bitmap {
-//    val bmp = Bitmap.createBitmap(MASK_SIZE, MASK_SIZE, Bitmap.Config.ALPHA_8)
-//    val c   = Canvas(bmp)
-//    val p   = Paint().apply {
-//        color = Color.WHITE
-//        style = Paint.Style.STROKE
-//        strokeWidth = 6f
-//        isAntiAlias = true
-//        strokeCap = Paint.Cap.ROUND
-//        strokeJoin = Paint.Join.ROUND
-//    }
-//    c.drawPath(this, p)
-//    return bmp
-//}
 fun ComposePath.toMask(): Bitmap {
     val bmp = createBitmap(MASK_SIZE, MASK_SIZE, Bitmap.Config.ALPHA_8)
     val c = AndroidCanvas(bmp)
@@ -222,8 +204,8 @@ private fun bitmapSimilarity(a: Bitmap, b: Bitmap): Float {
     val total = MASK_SIZE * MASK_SIZE
     for (y in 0 until MASK_SIZE) {
         for (x in 0 until MASK_SIZE) {
-            val hitA = a.getPixel(x, y) != 0
-            val hitB = b.getPixel(x, y) != 0
+            val hitA = a[x, y] != 0
+            val hitB = b[x, y] != 0
             if (hitA == hitB) same++
         }
     }
@@ -238,9 +220,8 @@ fun pathsAreClose(user: ComposePath, perfect: ComposePath, threshold: Float = 0.
 }
 
 
-
 @Preview(showBackground = true)
 @Composable
 private fun FirstPathPreview() {
-    FirstPath()
+
 }
