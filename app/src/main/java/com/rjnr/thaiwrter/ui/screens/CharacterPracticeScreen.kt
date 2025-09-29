@@ -86,7 +86,7 @@ fun CharacterPracticeScreen(
     // Trigger the guide animation loop
     LaunchedEffect(practiceStep, currentCharacter, userHasStartedTracing) {
         // Add userHasStartedTracing key
-        if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null && !userHasStartedTracing) {
+        if (practiceStep == PracticeStep.GUIDE_AND_TRACE && !userHasStartedTracing) {
             viewModel.executeGuideAnimationLoop()
         }
     }
@@ -135,7 +135,7 @@ fun CharacterPracticeScreen(
             crossFadeProgress,
             rightRevealProgress,
             advanceToNextStep = {
-                // viewModel.advanceToNextStep()
+                viewModel.advanceToNextStep()
             },
             onDragStartAction = {
                 viewModel.userStartedTracing()
@@ -195,23 +195,23 @@ private fun ContentUI(
                 enabled = practiceStep == PracticeStep.AWAITING_BLANK_SLATE ||
                         practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER
             ) {
-                advanceToNextStep
+                // advanceToNextStep
             }
     )
     {
         // Top Bar (Character Info, Progress - Placeholder)
-        currentCharacter?.let { char ->
-            Text(
-                text = char.character,
-                style = MaterialTheme.typography.displayLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-            Text(
-                text = char.pronunciation,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-        }
+
+        Text(
+            text = currentCharacter.character,
+            style = MaterialTheme.typography.displayLarge,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+        Text(
+            text = currentCharacter.pronunciation,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+
         Spacer(Modifier.height(8.dp)) // Reduced spacer
 
         // Drawing Area
@@ -264,17 +264,15 @@ private fun ContentUI(
                 )
             }
 
-            if (practiceStep == PracticeStep.GUIDE_AND_TRACE && currentCharacter != null) {
-                currentCharacter?.let { char ->
-                    StrokeGuide(
-                        strokes = char.strokes,
-                        animationProgress = guideAnimationProgress,
-                        userHasStartedTracing = userHasStartedTracing,
-                        currentStrokeIndex = currentStrokeIndex,
-                        marginToApply = 0.2f,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+            if (practiceStep == PracticeStep.GUIDE_AND_TRACE) {
+                StrokeGuide(
+                    strokes = currentCharacter.strokes,
+                    animationProgress = guideAnimationProgress,
+                    userHasStartedTracing = userHasStartedTracing,
+                    currentStrokeIndex = currentStrokeIndex,
+                    marginToApply = 0.2f,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             OptimizedDrawingCanvas(
@@ -291,8 +289,8 @@ private fun ContentUI(
             // WHY: This provides the integrated, per-stroke feedback. It draws both the fading user path and the appearing correct path.
             val isCrossFading =
                 practiceStep == PracticeStep.CROSS_FADING_TRACE || practiceStep == PracticeStep.CROSS_FADING_WRITE
-            if (isCrossFading && pathForCrossFade != null && currentCharacter != null) {
-                val perfectStrokeSvg = currentCharacter!!.strokes[currentStrokeIndex]
+            if (isCrossFading && pathForCrossFade != null) {
+                val perfectStrokeSvg = currentCharacter.strokes[currentStrokeIndex]
                 val perfectPath = remember(perfectStrokeSvg) {
                     PathParser().parsePathString(perfectStrokeSvg).toPath()
                 }
@@ -348,7 +346,7 @@ private fun ContentUI(
                 }
             } else if ((practiceStep == PracticeStep.AWAITING_BLANK_SLATE || practiceStep == PracticeStep.AWAITING_NEXT_CHARACTER) && currentCharacter?.strokes != null
             ) {
-                currentCharacter?.let { char ->
+                currentCharacter.let { char ->
                     // One-shot "RIGHT" animation: write-on the correct character in green
                     StrokeGuide(
                         strokes = char.strokes,
@@ -408,6 +406,7 @@ private fun ContentUI(
                 )
             }
         }
+        Spacer(Modifier.height(12.dp))
 
         Text(
             text = when (practiceStep) {
@@ -422,6 +421,13 @@ private fun ContentUI(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 24.dp)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    // enabled = practiceStep == PracticeStep.USER_WRITING_BLANK
+                ) {
+                    advanceToNextStep()
+                }
         )
 
         Spacer(Modifier.weight(1f))

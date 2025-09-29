@@ -67,6 +67,9 @@ dependencies {
     implementation(libs.tensorflow.tensorflow.lite)
     implementation(libs.tensorflow.lite.support)
     implementation (libs.tensorflow.lite.metadata)
+    // icon pack
+    implementation(libs.iconsax.android)
+
 
 
 

@@ -117,36 +117,29 @@ class CharacterPracticeViewModel(
 
     private fun initialLoadAndPrepareCharacter() {
         loadNextCharacter()
-        _currentCharacter.value?.let {
-            setupForNewCharacter()
-        }
+        setupForNewCharacter()
     }
 
     private fun loadNextCharacterAndPrepareAnimation() {
         loadNextCharacter()
-        _currentCharacter.value?.let {
-            setupForNewCharacter()
-        }
+        setupForNewCharacter()
     }
 
     private fun loadPreviousCharacterAndPrepareAnimation() {
         loadPreviousCharacter()
-        _currentCharacter.value?.let {
-            setupForNewCharacter()
-        }
+        setupForNewCharacter()
     }
 
     // WHAT CHANGED: The animation loop now depends on the currentStrokeIndex.
     // WHY: The guide animation should only run for the currently active stroke.
     suspend fun executeGuideAnimationLoop() {
-        if (_practiceStep.value != PracticeStep.GUIDE_AND_TRACE || currentCharacter.value == null) {
+        if (_practiceStep.value != PracticeStep.GUIDE_AND_TRACE) {
             return
         }
 
         while (isActive &&
             _practiceStep.value == PracticeStep.GUIDE_AND_TRACE &&
-            !_userHasStartedTracing.value &&
-            currentCharacter.value != null
+            !_userHasStartedTracing.value
         ) {
             _guideAnimationProgress.snapTo(0f)
             try {
@@ -186,7 +179,7 @@ class CharacterPracticeViewModel(
     fun onUserStrokeFinished(path: Path) {
         viewModelScope.launch { _clearCanvasSignal.emit(Unit) }
 
-        val char = _currentCharacter.value ?: return
+        val char = _currentCharacter.value
         if (_currentStrokeIndex.value >= char.strokes.size) return
 
         val perfectSvgPath = char.strokes[_currentStrokeIndex.value]
@@ -204,25 +197,13 @@ class CharacterPracticeViewModel(
     }
 
     fun playCurrentCharacterSound() {
-        _currentCharacter.value?.let {
+        _currentCharacter.value.let {
             soundManager.playSoundForCharacter(it.id)
         }
     }
 
-
-    private fun triggerCrossFadeAnimation() {
-        viewModelScope.launch {
-            crossFadeAnimation.snapTo(0f)
-            crossFadeAnimation.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 600) // A quick, smooth fade
-            )
-            onCrossFadeFinished()
-        }
-    }
-
     fun onCrossFadeFinished() {
-        val char = _currentCharacter.value ?: return
+        val char = _currentCharacter.value
         val step = _practiceStep.value
         _pathForCrossFade.value = null
 
