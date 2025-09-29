@@ -50,7 +50,7 @@ class CharacterPracticeViewModel(
     private var currentCharacterIndex = -1
 
 
-    private val _currentCharacter = MutableStateFlow<ThaiCharacter?>(null)
+    private val _currentCharacter = MutableStateFlow<ThaiCharacter>(ThaiCharacter())
     val currentCharacter = _currentCharacter.asStateFlow()
 
     private val _practiceStep = MutableStateFlow(PracticeStep.INITIAL)
@@ -79,7 +79,7 @@ class CharacterPracticeViewModel(
 
     init {
         // Load sounds when the ViewModel is created
-        //soundManager.loadSoundsForCharacters(allCharacters)
+        soundManager.loadSoundsForCharacters(allCharacters)
         // Load the first character when ViewModel is created
         initialLoadAndPrepareCharacter()
     }
@@ -106,6 +106,15 @@ class CharacterPracticeViewModel(
         _currentCharacter.value = allCharacters[currentCharacterIndex]
     }
 
+    private fun loadPreviousCharacter() {
+        currentCharacterIndex--
+        // Loop back to the start if we've reached the end of the list
+        if (currentCharacterIndex >= allCharacters.size) {
+            currentCharacterIndex = 0
+        }
+        _currentCharacter.value = allCharacters[currentCharacterIndex]
+    }
+
     private fun initialLoadAndPrepareCharacter() {
         loadNextCharacter()
         _currentCharacter.value?.let {
@@ -113,8 +122,15 @@ class CharacterPracticeViewModel(
         }
     }
 
-    fun loadNextCharacterAndPrepareAnimation() {
+    private fun loadNextCharacterAndPrepareAnimation() {
         loadNextCharacter()
+        _currentCharacter.value?.let {
+            setupForNewCharacter()
+        }
+    }
+
+    private fun loadPreviousCharacterAndPrepareAnimation() {
+        loadPreviousCharacter()
         _currentCharacter.value?.let {
             setupForNewCharacter()
         }
@@ -263,9 +279,15 @@ class CharacterPracticeViewModel(
     }
 
     // When "Next Char" button is pressed
-    fun requestNextCharacter() {
+    fun nextCharacter() {
         viewModelScope.launch {
             loadNextCharacterAndPrepareAnimation()
+        }
+    }
+
+    fun previousCharacter() {
+        viewModelScope.launch {
+            loadPreviousCharacterAndPrepareAnimation()
         }
     }
 

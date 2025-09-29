@@ -5,12 +5,12 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ThaiCharacter(
-    val id: Int,
-    val character: String,
-    val pronunciation: String,
-    val strokes: List<String> = listOf(),           // NEW – ordered centre-line paths
+    val id: Int = 0,
+    val character: String = "",
+    val pronunciation: String = "",
+    val strokes: List<String> = listOf(),
     val difficulty: Int = 0,
-    val category: String = ""            // consonant, vowel, tone mark, …
+    val category: String = ""
 )
 
 val THAI_CHARACTERS = listOf(
