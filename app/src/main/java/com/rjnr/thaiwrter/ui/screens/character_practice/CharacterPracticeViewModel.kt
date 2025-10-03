@@ -109,9 +109,9 @@ class CharacterPracticeViewModel(
     private fun loadPreviousCharacter() {
         currentCharacterIndex--
         // Loop back to the start if we've reached the end of the list
-        if (currentCharacterIndex >= allCharacters.size) {
-            currentCharacterIndex = 0
-        }
+//        if (currentCharacterIndex >= allCharacters.size) {
+//            currentCharacterIndex = 0
+//        }
         _currentCharacter.value = allCharacters[currentCharacterIndex]
     }
 

@@ -241,14 +241,13 @@ val THAI_CHARACTERS = listOf(
     ThaiCharacter(41, "ห", "ho hip", category = "consonant"),
     ThaiCharacter(42, "ฬ", "lo chula", category = "consonant"),
     ThaiCharacter(43, "อ", "o ang", category = "consonant"),
+    ThaiCharacter(44, "ฮ", "ho nokhuk", category = "consonant"),
 
     /* --- simple vowels written as full glyphs --- */
-    ThaiCharacter(44, "อะ", "sara a", category = "vowel"),
-    ThaiCharacter(45, "อา", "sara aa", category = "vowel"),
-    ThaiCharacter(46, "อำ", "sara am", category = "vowel"),
+    ThaiCharacter(45, "อะ", "sara a", category = "vowel"),
+    ThaiCharacter(46, "อา", "sara aa", category = "vowel"),
+    ThaiCharacter(47, "อำ", "sara am", category = "vowel"),
 
-    /* --- final consonant --- */
-    ThaiCharacter(47, "ฮ", "ho nokhuk", category = "consonant"),
 
     /* --- punctuation / special marks --- */
     ThaiCharacter(48, "ฯ", "paiyannoi", category = "punctuation"),

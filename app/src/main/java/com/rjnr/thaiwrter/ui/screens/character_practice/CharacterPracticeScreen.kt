@@ -445,8 +445,12 @@ private fun ContentUI(
                 .padding(bottom = 16.dp, top = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Button(onClick = previousCharacter) { Text("Previous Character") }
-            Button(onClick = requestNextCharacter) { Text("Next Character") } // Or "Skip"
+            Button(
+                onClick = previousCharacter,
+                enabled = currentCharacter.id > 0
+            ) { Text("Previous Character") }
+
+            Button(onClick = requestNextCharacter) { Text("Next Character") }
         }
     }
 }
@@ -459,8 +463,8 @@ private fun ContentUIPreview() {
         innerPadding = PaddingValues(16.dp),
         interactionSource = remember { MutableInteractionSource() },
         practiceStep = PracticeStep.GUIDE_AND_TRACE,
-        currentCharacter = MLStrokeValidator.ALL_CHARS[0],
-        guideAnimationProgress = 0.5f,
+        currentCharacter = MLStrokeValidator.ALL_CHARS[1],
+        guideAnimationProgress = 0.8f,
         userHasStartedTracing = false,
         currentStrokeIndex = 0,
         drawingEnabled = true,
