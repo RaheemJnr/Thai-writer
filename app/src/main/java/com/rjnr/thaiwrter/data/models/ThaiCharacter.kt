@@ -281,8 +281,19 @@ val THAI_CHARACTERS = listOf(
         )
     ),
 
-    ThaiCharacter(43, "อ", "o ang", category = "consonant"),
-    ThaiCharacter(44, "ฮ", "ho nokhuk", category = "consonant"),
+    ThaiCharacter(
+        43, "อ", "o ang", category = "consonant",
+        strokes = listOf(
+            "M60.4998 417.5C150 498.5 251.5 411.5 251.5 358.5C251.5 305.5 198.5 253.5 121.499 269.5C34.3607 287.607 -20.1385 369.02 9.99988 466C60.5 628.5 335 655 450.5 588C605 519 675.842 181.137 509.5 52C389.811 -40.9186 115.5 9.5 60.5002 80.5"
+        )
+    ),
+    ThaiCharacter(
+        44, "ฮ", "ho nokhuk", category = "consonant",
+        strokes = listOf(
+            "M44.5 455.5C134 536.5 255.5 474 255.5 409C255.5 344 198.5 285.5 121.499 301.5C34.3607 319.607 -20.1385 401.02 9.99988 498C60.5 660.5 335 687 450.5 620C605 551 644.842 256.137 478.5 127C358.811 34.0814 136 68 81 139",
+            "M499 108.5C578.6 92.1 620.167 30 631 1"
+        )
+    ),
 
     /* --- simple vowels written as full glyphs --- */
     ThaiCharacter(45, "อะ", "sara a", category = "vowel"),
