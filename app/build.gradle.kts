@@ -1,12 +1,9 @@
-import com.android.build.gradle.ProguardFiles.getDefaultProguardFile
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
     kotlin("plugin.serialization") version "2.0.20"
-
 }
 
 android {
@@ -36,22 +33,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
-    }
+    kotlinOptions { jvmTarget = "11" }
+    buildFeatures { compose = true }
 }
 
 dependencies {
-    //ktor json
-    implementation (libs.kotlinx.serialization.json)
-    implementation (libs.ktor.serialization.kotlinx.json)
+    // ktor json
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
-    //koin
-    implementation (libs.koin.android)
-    implementation (libs.koin.androidx.compose)
+    // koin
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
 
     // Room Database
     implementation(libs.androidx.room.runtime)
@@ -62,18 +55,17 @@ dependencies {
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
 
 
     implementation(libs.tensorflow.tensorflow.lite)
     implementation(libs.tensorflow.lite.support)
-    implementation (libs.tensorflow.lite.metadata)
+    implementation(libs.tensorflow.lite.metadata)
     // icon pack
     implementation(libs.iconsax.android)
 
-
-
-
-    //core android
+    // core android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -87,6 +79,9 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

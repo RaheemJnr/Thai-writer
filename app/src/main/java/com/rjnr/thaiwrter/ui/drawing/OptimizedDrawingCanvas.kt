@@ -7,17 +7,17 @@ import androidx.compose.foundation.gestures.drag
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
-import kotlinx.coroutines.flow.SharedFlow
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlinx.coroutines.flow.SharedFlow
 
 /**
  * Optimized drawing canvas with improved performance features:
@@ -28,104 +28,131 @@ import kotlin.math.sqrt
  */
 @Composable
 fun OptimizedDrawingCanvas(
-    modifier: Modifier = Modifier,
-    clearSignal: SharedFlow<Unit>,
-    onStrokeFinished: (Path) -> Unit,
-    onDragStartAction: () -> Unit,
-    enabled: Boolean = true,
-    strokeColor: Color = DrawingConfig.defaultStrokeColor,
-    strokeWidthRatio: Float = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO
+        modifier: Modifier = Modifier,
+        clearSignal: SharedFlow<Unit>,
+        onStrokeFinished: (Path) -> Unit,
+        onDragStartAction: () -> Unit,
+        enabled: Boolean = true,
+        strokeColor: Color = DrawingConfig.defaultStrokeColor,
+        strokeWidthRatio: Float = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO,
+        onStrokePointsCaptured: ((List<Offset>, Size) -> Unit)? = null
 ) {
     val density = LocalDensity.current
 
     // Drawing state
     var drawingState by remember { mutableStateOf(DrawingState()) }
+    var canvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
 
     // Clear canvas when signal is received
-    LaunchedEffect(Unit) {
-        clearSignal.collect {
-            drawingState = DrawingState()
-        }
-    }
+    LaunchedEffect(Unit) { clearSignal.collect { drawingState = DrawingState() } }
 
     Canvas(
-        modifier = modifier
-            .graphicsLayer {
-                // Enable hardware acceleration
-                if (DrawingConfig.ENABLE_HARDWARE_ACCELERATION) {
-                    compositingStrategy = CompositingStrategy.Offscreen
-                }
-            }
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
-
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    onDragStartAction()
-
-                    // Start new path
-                    drawingState = drawingState.copy(
-                        currentPath = Path().apply { moveTo(down.position.x, down.position.y) },
-                        lastPoint = down.position,
-                        points = mutableListOf(down.position),
-                        isDrawing = true
-                    )
-
-                    // Handle drag
-                    drag(down.id) { change ->
-                        if (change.positionChange() != Offset.Zero) {
-                            change.consume()
-
-                            val newPoint = change.position
-                            val lastPoint = drawingState.lastPoint
-
-                            // Calculate distance from last point
-                            val distance = (newPoint - lastPoint).getDistance()
-
-                            // Only add point if it's far enough (adaptive based on speed)
-                            val minDistance = calculateMinDistance(drawingState.points, density.density)
-
-                            if (distance >= minDistance && drawingState.points.size < DrawingConfig.MAX_PATH_POINTS) {
-                                // Add smooth curve instead of straight line
-                                addSmoothPoint(drawingState, newPoint)
-
-                                drawingState = drawingState.copy(
-                                    lastPoint = newPoint,
-                                    points = drawingState.points.apply { add(newPoint) }
-                                )
+            modifier =
+                    modifier
+                            .graphicsLayer {
+                                // Enable hardware acceleration
+                                if (DrawingConfig.ENABLE_HARDWARE_ACCELERATION) {
+                                    compositingStrategy = CompositingStrategy.Offscreen
+                                }
                             }
-                        }
-                    }
+                            .pointerInput(enabled) {
+                                if (!enabled) return@pointerInput
 
-                    // Finish stroke
-                    drawingState = drawingState.copy(isDrawing = false)
+                                awaitEachGesture {
+                                    val down = awaitFirstDown()
+                                    onDragStartAction()
 
-                    // Optimize path before callback
-                    val optimizedPath = if (drawingState.points.size > 10) {
-                        optimizePath(drawingState.currentPath, drawingState.points)
-                    } else {
-                        drawingState.currentPath
-                    }
-                    onStrokeFinished(optimizedPath)
-                }
-            }
+                                    // Start new path
+                                    drawingState =
+                                            drawingState.copy(
+                                                    currentPath =
+                                                            Path().apply {
+                                                                moveTo(
+                                                                        down.position.x,
+                                                                        down.position.y
+                                                                )
+                                                            },
+                                                    lastPoint = down.position,
+                                                    points = mutableListOf(down.position),
+                                                    isDrawing = true
+                                            )
+
+                                    // Handle drag
+                                    drag(down.id) { change ->
+                                        if (change.positionChange() != Offset.Zero) {
+                                            change.consume()
+
+                                            val newPoint = change.position
+                                            val lastPoint = drawingState.lastPoint
+
+                                            // Calculate distance from last point
+                                            val distance = (newPoint - lastPoint).getDistance()
+
+                                            // Only add point if it's far enough (adaptive based on
+                                            // speed)
+                                            val minDistance =
+                                                    calculateMinDistance(
+                                                            drawingState.points,
+                                                            density.density
+                                                    )
+
+                                            if (distance >= minDistance &&
+                                                            drawingState.points.size <
+                                                                    DrawingConfig.MAX_PATH_POINTS
+                                            ) {
+                                                // Add smooth curve instead of straight line
+                                                addSmoothPoint(drawingState, newPoint)
+
+                                                drawingState =
+                                                        drawingState.copy(
+                                                                lastPoint = newPoint,
+                                                                points =
+                                                                        drawingState.points.apply {
+                                                                            add(newPoint)
+                                                                        }
+                                                        )
+                                            }
+                                        }
+                                    }
+
+                                    // Finish stroke
+                                    drawingState = drawingState.copy(isDrawing = false)
+
+                                    // Optimize path before callback
+                                    val optimizedPath =
+                                            if (drawingState.points.size > 10) {
+                                                optimizePath(
+                                                        drawingState.currentPath,
+                                                        drawingState.points
+                                                )
+                                            } else {
+                                                drawingState.currentPath
+                                            }
+                                    onStrokeFinished(optimizedPath)
+                                    onStrokePointsCaptured?.invoke(
+                                            drawingState.points.toList(),
+                                            canvasSize
+                                    )
+                                }
+                            }
     ) {
+        canvasSize = size
         val strokeWidth = DrawingConfig.getStrokeWidth(min(size.width, size.height))
 
         // Draw with optimized stroke settings
         drawOptimizedPath(
-            path = drawingState.currentPath,
-            color = strokeColor,
-            strokeWidth = strokeWidth
+                path = drawingState.currentPath,
+                color = strokeColor,
+                strokeWidth = strokeWidth
         )
     }
 }
 
 private data class DrawingState(
-    val currentPath: Path = Path(),
-    val lastPoint: Offset = Offset.Zero,
-    val points: MutableList<Offset> = mutableListOf(),
-    val isDrawing: Boolean = false
+        val currentPath: Path = Path(),
+        val lastPoint: Offset = Offset.Zero,
+        val points: MutableList<Offset> = mutableListOf(),
+        val isDrawing: Boolean = false
 )
 
 private fun Offset.getDistance(): Float {
@@ -157,42 +184,34 @@ private fun addSmoothPoint(state: DrawingState, newPoint: Offset) {
     } else {
         // Use quadratic Bezier curve for smoothing
         val controlPoint = lastPoint
-        val endPoint = Offset(
-            (lastPoint.x + newPoint.x) / 2,
-            (lastPoint.y + newPoint.y) / 2
-        )
+        val endPoint = Offset((lastPoint.x + newPoint.x) / 2, (lastPoint.y + newPoint.y) / 2)
 
-        path.quadraticTo(
-            controlPoint.x, controlPoint.y,
-            endPoint.x, endPoint.y
-        )
+        path.quadraticTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y)
     }
 }
 
-private fun DrawScope.drawOptimizedPath(
-    path: Path,
-    color: Color,
-    strokeWidth: Float
-) {
+private fun DrawScope.drawOptimizedPath(path: Path, color: Color, strokeWidth: Float) {
     drawPath(
-        path = path,
-        color = color,
-        style = Stroke(
-            width = strokeWidth,
-            cap = DrawingConfig.strokeCap,
-            join = DrawingConfig.strokeJoin,
-            miter = DrawingConfig.strokeMiter,
-            pathEffect = null // Avoid path effects for better performance
-        ),
-        alpha = 1f,
-        colorFilter = null,
-        blendMode = DrawScope.DefaultBlendMode
+            path = path,
+            color = color,
+            style =
+                    Stroke(
+                            width = strokeWidth,
+                            cap = DrawingConfig.strokeCap,
+                            join = DrawingConfig.strokeJoin,
+                            miter = DrawingConfig.strokeMiter,
+                            pathEffect = null // Avoid path effects for better performance
+                    ),
+            alpha = 1f,
+            colorFilter = null,
+            blendMode = DrawScope.DefaultBlendMode
     )
 }
 
 private fun optimizePath(path: Path, points: List<Offset>): Path {
     // Simplify points using Douglas-Peucker algorithm
-    val simplifiedPoints = simplifyPathDouglasPeucker(points, DrawingConfig.PATH_SIMPLIFICATION_EPSILON)
+    val simplifiedPoints =
+            simplifyPathDouglasPeucker(points, DrawingConfig.PATH_SIMPLIFICATION_EPSILON)
 
     if (simplifiedPoints.size < 2) return path
 
@@ -218,16 +237,12 @@ private fun optimizePath(path: Path, points: List<Offset>): Path {
             }
         } else {
             // Simple line connections
-            simplifiedPoints.drop(1).forEach { point ->
-                lineTo(point.x, point.y)
-            }
+            simplifiedPoints.drop(1).forEach { point -> lineTo(point.x, point.y) }
         }
     }
 }
 
-/**
- * Extension function to implement Douglas-Peucker algorithm for path simplification
- */
+/** Extension function to implement Douglas-Peucker algorithm for path simplification */
 fun simplifyPathDouglasPeucker(points: List<Offset>, epsilon: Float): List<Offset> {
     if (points.size < 3) return points
 
@@ -266,4 +281,4 @@ private fun perpendicularDistance(point: Offset, lineStart: Offset, lineEnd: Off
 
     val normalLength = sqrt(dx * dx + dy * dy)
     return abs((point.x - lineStart.x) * dy - (point.y - lineStart.y) * dx) / normalLength
-} 
+}

@@ -1,57 +1,115 @@
 package com.rjnr.thaiwrter.ui.screens
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.rjnr.thaiwrter.ui.drawing.StrokeGuide
-
+import com.rjnr.thaiwrter.data.models.UserProgress
+import com.rjnr.thaiwrter.ui.screens.progress.ProgressViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun ProgressScreen(navController: NavController) {
+fun ProgressScreen(navController: NavController, viewModel: ProgressViewModel = koinViewModel()) {
+    val dueReviews by viewModel.dueReviews.collectAsState()
+    val streak = remember { 6 }
 
-    val infiniteTransition = rememberInfiniteTransition()
+    Scaffold(topBar = { TopAppBar(title = { Text("Progress & Review") }) }) { padding ->
+        LazyColumn(
+                modifier =
+                        Modifier.fillMaxSize()
+                                .background(Color(0xFFF6F4FB))
+                                .padding(padding)
+                                .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item { StreakCard(streakDays = streak, dueCount = dueReviews.size) }
+            item { ReviewQueueCard(dueReviews) }
+            item { TipsCard() }
+        }
+    }
+}
 
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                // Infinitely repeating a 1000ms tween animation using default easing curve.
-                animation = tween(3500, easing = LinearEasing),
-                // After each iteration of the animation (i.e. every 1000ms), the animation
-                // will
-                // start again from the [initialValue] defined above.
-                // This is the default [RepeatMode]. See [RepeatMode.Reverse] below for an
-                // alternative.
-                repeatMode = RepeatMode.Restart,
-            ),
-    )
-    val testStroke = listOf(
-        "M37.0001 229.5C53.5001 190.5 78.0001 178.5 120.5 178.5C199.781 178.5 201.411 305.799 132.5 345C89.9999 369.177 50.4045 353 25 312.5C-9.49993 257.5 -4.12321 146 25 81C54.1232 16 116.743 -14.8447 171 16C213.875 40.374 216 134 216 134C216 134 243.719 9.31221 297 2C342.337 -4.22197 374.071 36.4422 384.5 81C423 245.5 319 564 272.5 621C226 678 156.877 663.5 120.5 621C84.1231 578.5 87.5178 514.665 147 467C229.567 400.837 335.5 511.418 384.5 548C457.5 602.5 522.5 621 583.5 621C644.5 621 612.167 216.333 615.5 16"
-    )
-
-
-    Column(
-        modifier = Modifier.fillMaxSize()
+@Composable
+private fun StreakCard(streakDays: Int, dueCount: Int) {
+    Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF312ECB)),
+            shape = RoundedCornerShape(32.dp)
     ) {
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Daily streak", color = Color.White.copy(alpha = 0.8f))
+            Text(
+                    "$streakDays days",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+            )
+            Text("$dueCount reviews waiting", color = Color.White.copy(alpha = 0.8f))
+        }
+    }
+}
 
-        StrokeGuide(
-            strokes = testStroke,
-            animationProgress = scale,
-            userHasStartedTracing = false,
-            marginToApply = 0.2f,
-            modifier = Modifier.fillMaxSize(),
-            currentStrokeIndex = testStroke.size,
+@Composable
+private fun ReviewQueueCard(queue: List<UserProgress>) {
+    Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Review queue", style = MaterialTheme.typography.titleMedium)
+            if (queue.isEmpty()) {
+                Text("You're caught up! Next reviews will appear here.")
+            } else {
+                queue.take(5).forEach { progress -> ReviewRow(progress) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewRow(progress: UserProgress) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Character #${progress.characterId}")
+        Text(
+                "Next ${(progress.nextReviewDate)}",
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall
         )
+    }
+}
 
+@Composable
+private fun TipsCard() {
+    Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF8F0)),
+            shape = RoundedCornerShape(28.dp)
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Growth tips", fontWeight = FontWeight.Bold)
+            Text("• Alternate between guided and blank modes for muscle memory.")
+            Text("• Revisit tricky strokes from freewriting to reinforce shapes.")
+        }
     }
 }

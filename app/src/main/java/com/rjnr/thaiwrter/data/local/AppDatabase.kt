@@ -39,7 +39,8 @@ import com.rjnr.thaiwrter.data.models.UserProgress
 
 @Database(
     entities = [ThaiCharacterEntity::class, UserProgressEntity::class],
-    version = 1
+    version = 1,
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun thaiCharacterDao(): ThaiCharacterDao

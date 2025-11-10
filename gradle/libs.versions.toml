@@ -18,6 +18,7 @@ tensorflowLiteMetadata = "0.4.2"
 tensorflowLiteSupport = "0.4.2"
 tensorflowLiteVersion = "2.9.0"
 iconsaxAndroid = "1.0.0"
+dataStorePreferences = "1.1.1"
 
 
 
@@ -50,6 +51,7 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 tensorflow-lite-metadata = { module = "org.tensorflow:tensorflow-lite-metadata", version.ref = "tensorflowLiteMetadata" }
 tensorflow-lite-support = { module = "org.tensorflow:tensorflow-lite-support", version.ref = "tensorflowLiteSupport" }
 tensorflow-tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tensorflowLiteVersion" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "dataStorePreferences" }
 
 
 
@@ -58,4 +60,3 @@ tensorflow-tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", versio
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-

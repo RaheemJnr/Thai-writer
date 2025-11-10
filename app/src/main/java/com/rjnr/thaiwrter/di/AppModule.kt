@@ -1,10 +1,13 @@
 package com.rjnr.thaiwrter.di
 
 import com.rjnr.thaiwrter.data.local.AppDatabase
+import com.rjnr.thaiwrter.data.preferences.OnboardingPreferences
 import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
 import com.rjnr.thaiwrter.ui.screens.character_practice.CharacterPracticeViewModel
 import com.rjnr.thaiwrter.ui.screens.free_drawing.FreewritingViewModel
 import com.rjnr.thaiwrter.ui.screens.main.MainViewModel
+import com.rjnr.thaiwrter.ui.screens.onboarding.OnboardingViewModel
+import com.rjnr.thaiwrter.ui.screens.progress.ProgressViewModel
 import com.rjnr.thaiwrter.utils.DatabaseInitializer
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import com.rjnr.thaiwrter.utils.SoundManager
@@ -21,13 +24,15 @@ val appModule = module {
     // Repository
     single { ThaiLanguageRepository(get(), get()) }
     single { DatabaseInitializer(androidContext(), get()) }
+    single { OnboardingPreferences(androidContext()) }
 
     single { MLStrokeValidator(androidContext()) }
     single { SoundManager(androidContext()) }
 
     // ViewModels
+    viewModel { OnboardingViewModel(get()) }
     viewModel { MainViewModel(get()) }
+    viewModel { ProgressViewModel(get()) }
     viewModel { CharacterPracticeViewModel(get(), get(), get()) }
     viewModel { FreewritingViewModel(get()) }
-
 }
