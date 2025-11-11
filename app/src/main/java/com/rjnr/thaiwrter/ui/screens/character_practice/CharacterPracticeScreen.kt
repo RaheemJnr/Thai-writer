@@ -190,16 +190,6 @@ private fun ContentUI(
                                 // advanceToNextStep
                             }
     ) {
-        CharacterHeroCard(
-                currentCharacter = currentCharacter,
-                practiceStep = practiceStep,
-                onPlayAudio = playCurrentCharacterSound,
-                onNext = requestNextCharacter,
-                onPrevious = previousCharacter
-        )
-
-        Spacer(Modifier.height(12.dp))
-
         StageProgressIndicator(
                 practiceStep = practiceStep,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -433,18 +423,15 @@ private fun ContentUI(
         )
 
         Spacer(Modifier.weight(1f))
+        CharacterHeroCard(
+            currentCharacter = currentCharacter,
+            practiceStep = practiceStep,
+            onPlayAudio = playCurrentCharacterSound,
+            onNext = requestNextCharacter,
+            onPrevious = previousCharacter
+        )
 
-        // Bottom Buttons
-        Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp, top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Button(onClick = previousCharacter, enabled = currentCharacter.id > 0) {
-                Text("Previous Character")
-            }
-
-            Button(onClick = requestNextCharacter) { Text("Next Character") }
-        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 

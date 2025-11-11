@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -18,6 +19,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,10 +30,11 @@ import com.rjnr.thaiwrter.data.models.UserProgress
 import com.rjnr.thaiwrter.ui.screens.progress.ProgressViewModel
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(navController: NavController, viewModel: ProgressViewModel = koinViewModel()) {
     val dueReviews by viewModel.dueReviews.collectAsState()
-    val streak = remember { 6 }
+    val streak by remember { mutableIntStateOf(6) }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Progress & Review") }) }) { padding ->
         LazyColumn(

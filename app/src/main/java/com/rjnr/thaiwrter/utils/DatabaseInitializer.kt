@@ -3,31 +3,15 @@ package com.rjnr.thaiwrter.utils
 import android.content.Context
 import android.util.Log
 import com.rjnr.thaiwrter.data.local.AppDatabase
-import com.rjnr.thaiwrter.data.models.CharactersWrapper
+import com.rjnr.thaiwrter.data.models.THAI_CHARACTERS
 import com.rjnr.thaiwrter.data.models.toEntity
-import kotlinx.serialization.json.Json
 
-class DatabaseInitializer(
-    private val context: Context,
-    private val database: AppDatabase
-) {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        prettyPrint = true
-        isLenient = true
-    }
-
+class DatabaseInitializer(private val context: Context, private val database: AppDatabase) {
     suspend fun initializeDatabase() {
         try {
             // Check if we need to initialize
             if (database.thaiCharacterDao().getCharacterCount() == 0) {
-                val jsonString = context.assets.open("database/initial_characters.json")
-                    .bufferedReader()
-                    .use { it.readText() }
-
-                val charactersWrapper = json.decodeFromString<CharactersWrapper>(jsonString)
-                database.thaiCharacterDao()
-                    .insertAll(charactersWrapper.thai_characters.map { it.toEntity() })
+                database.thaiCharacterDao().insertAll(THAI_CHARACTERS.map { it.toEntity() })
             }
         } catch (e: Exception) {
             Log.e("DatabaseInitializer", "Error initializing database", e)
