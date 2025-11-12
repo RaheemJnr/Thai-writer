@@ -80,7 +80,7 @@ class CharacterPracticeViewModel(
 
     init {
         // Load sounds when the ViewModel is created
-        soundManager.loadSoundsForCharacters(allCharacters)
+      //  soundManager.loadSoundsForCharacters(allCharacters)
         // Load the first character when ViewModel is created
         initialLoadAndPrepareCharacter()
     }
