@@ -187,24 +187,8 @@ private fun ContentUI(
                                                     practiceStep ==
                                                             PracticeStep.AWAITING_NEXT_CHARACTER
                             ) {
-                                // advanceToNextStep
                             }
     ) {
-        StageProgressIndicator(
-                practiceStep = practiceStep,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        StrokeTimeline(
-                totalStrokes = currentCharacter.strokes.size,
-                currentStrokeIndex = currentStrokeIndex,
-                practiceStep = practiceStep
-        )
-
-        Spacer(Modifier.height(12.dp))
-
         // Drawing Area
         Box(
                 modifier =
@@ -274,11 +258,6 @@ private fun ContentUI(
                     strokeColor = Color.Black,
                     strokeWidthRatio = DrawingConfig.DEFAULT_STROKE_WIDTH_RATIO
             )
-
-            // WHAT CHANGED: This is the new cross-fade animation canvas. It replaces the
-            // MorphOverlay.
-            // WHY: This provides the integrated, per-stroke feedback. It draws both the fading user
-            // path and the appearing correct path.
             val isCrossFading =
                     practiceStep == PracticeStep.CROSS_FADING_TRACE ||
                             practiceStep == PracticeStep.CROSS_FADING_WRITE
@@ -361,42 +340,28 @@ private fun ContentUI(
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            IconButton(
-                    onClick = manualClear,
-                    enabled = drawingEnabled,
-                    modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                        painter = painterResource(IconSax.Linear.Eraser1),
-                        contentDescription = "Practice Mode",
-                        tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            IconButton(onClick = { playCurrentCharacterSound() }, modifier = Modifier.size(40.dp)) {
-                Icon(
-                        painter = painterResource(IconSax.Linear.VolumeHigh),
-                        contentDescription = "Pronunciation",
-                        tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            IconButton(
-                    onClick = {
-                        //  playCurrentCharacterSound()
-                    },
-                    modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                        painter = painterResource(IconSax.Linear.Heart),
-                        contentDescription = "Toggle Guide (if applicable)",
-                        tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        }
+        StageProgressIndicator(
+            practiceStep = practiceStep,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+
+//        Spacer(Modifier.height(12.dp))
+//        Row(
+//                modifier = Modifier.fillMaxWidth().padding(12.dp),
+//                horizontalArrangement = Arrangement.SpaceEvenly
+//        ) {
+//            IconButton(
+//                    onClick = manualClear,
+//                    enabled = drawingEnabled,
+//                    modifier = Modifier.size(40.dp)
+//            ) {
+//                Icon(
+//                        painter = painterResource(IconSax.Linear.Eraser1),
+//                        contentDescription = "Practice Mode",
+//                        tint = MaterialTheme.colorScheme.onSurface
+//                )
+//            }
+//        }
         Spacer(Modifier.height(12.dp))
 
         Text(
@@ -421,8 +386,8 @@ private fun ContentUI(
                                         // enabled = practiceStep == PracticeStep.USER_WRITING_BLANK
                                         ) { advanceToNextStep() }
         )
+        Spacer(Modifier.height(12.dp))
 
-        Spacer(Modifier.weight(1f))
         CharacterHeroCard(
             currentCharacter = currentCharacter,
             practiceStep = practiceStep,
@@ -449,7 +414,7 @@ private fun CharacterHeroCard(
             )
     Column(
             modifier =
-                    Modifier.fillMaxWidth()
+                    Modifier.fillMaxWidth().padding(12.dp)
                             .clip(RoundedCornerShape(28.dp))
                             .background(brush = gradient)
                             .padding(20.dp)
@@ -486,17 +451,17 @@ private fun CharacterHeroCard(
                 verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = practiceStep.name.replace("_", " "), color = Color.White.copy(alpha = 0.9f))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 IconButton(onClick = onPrevious, enabled = currentCharacter.id > 0) {
                     Icon(
-                            painter = painterResource(IconSax.Linear.ArrowLeft),
+                            painter = painterResource(IconSax.Linear.ArrowLeft1),
                             contentDescription = "Previous",
                             tint = Color.White
                     )
                 }
                 IconButton(onClick = onNext) {
                     Icon(
-                            painter = painterResource(IconSax.Linear.ArrowRight),
+                            painter = painterResource(IconSax.Linear.ArrowRight1),
                             contentDescription = "Next",
                             tint = Color.White
                     )
@@ -523,13 +488,13 @@ private fun StrokeTimeline(totalStrokes: Int, currentStrokeIndex: Int, practiceS
                         isCompleted -> MaterialTheme.colorScheme.tertiary
                         else -> MaterialTheme.colorScheme.surfaceVariant
                     }
-            Box(
-                    modifier =
-                            Modifier.weight(1f)
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(color)
-            )
+//            Box(
+//                    modifier =
+//                            Modifier.weight(1f)
+//                                    .height(8.dp)
+//                                    .clip(RoundedCornerShape(20.dp))
+//                                    .background(color)
+//            )
             if (index != totalStrokes - 1) {
                 Spacer(modifier = Modifier.width(8.dp))
             }

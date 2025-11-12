@@ -47,7 +47,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.rjnr.thaiwrter.ui.navigation.NavDestinations
-import com.rjnr.thaiwrter.utils.ConnectionStatus
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import io.eyram.iconsax.IconSax
 import org.koin.androidx.compose.koinViewModel
@@ -55,7 +54,6 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun MainScreen(viewModel: MainViewModel = koinViewModel(), navController: NavController) {
     val dueReviews by viewModel.dueReviews.collectAsState()
-    val networkStatus by viewModel.networkStatus.collectAsState()
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -77,10 +75,6 @@ fun MainScreen(viewModel: MainViewModel = koinViewModel(), navController: NavCon
                                 .padding(padding)
                                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            if (networkStatus == ConnectionStatus.Unavailable) {
-                OfflineBanner()
-                Spacer(Modifier.height(12.dp))
-            }
 
             DashboardHeroCard(
                     dueReviewsCount = dueReviews.size,
