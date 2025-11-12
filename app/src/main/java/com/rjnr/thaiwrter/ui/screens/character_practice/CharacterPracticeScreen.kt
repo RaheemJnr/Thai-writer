@@ -291,7 +291,7 @@ private fun ContentUI(
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val strokeWidthPx = DrawingConfig.getStrokeWidth(min(size.width, size.height))
-                    Log.d("CharacterPracticeScreen", "Stroke width: $strokeWidthPx")
+                  //  Log.d("CharacterPracticeScreen", "Stroke width: $strokeWidthPx")
                     val strokeStyle =
                             Stroke(
                                     width = strokeWidthPx,

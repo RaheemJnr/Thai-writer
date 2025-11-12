@@ -1,5 +1,6 @@
 package com.rjnr.thaiwrter.ui.screens.character_practice
 
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -199,7 +200,9 @@ class CharacterPracticeViewModel(
     fun playCurrentCharacterSound() {
         _currentCharacter.value.let {
             soundManager.playSoundForCharacter(it.id)
+            Log.d("CharacterPracticeViewModel", "Playing sound for character: ${it.id}")
         }
+        Log.d("CharacterPracticeViewModel", "Current character ID: ${_currentCharacter.value}")
     }
 
     fun onCrossFadeFinished() {

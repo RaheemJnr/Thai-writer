@@ -44,6 +44,7 @@ class SoundManager(appContext: Context) {
         // Load on main or IO is fine; SoundPool decodes internally.
         characters.forEach { ch ->
             val resId = context.resources.getIdentifier("char_${ch.id}", "raw", context.packageName)
+            Log.d("SoundManager", "Loading char_${ch.id} resId=$resId")
             if (resId == 0) {
                 Log.w("SoundManager", "Missing raw/char_${ch.id}")
                 return@forEach
@@ -69,6 +70,7 @@ class SoundManager(appContext: Context) {
             return
         }
         val streamId = soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
+        Log.d("SoundManager", "Playing char $characterId soundId=$soundId streamId=$streamId")
         if (streamId == 0) {
             Log.e("SoundManager", "play() failed for char $characterId (soundId=$soundId)")
         }
@@ -76,6 +78,8 @@ class SoundManager(appContext: Context) {
 
     fun release() {
         soundPool.release()
+        soundMap.clear()
+        loaded.clear()
     }
 }
 
