@@ -13,6 +13,7 @@ import com.rjnr.thaiwrter.data.repository.ThaiLanguageRepository
 import com.rjnr.thaiwrter.ui.drawing.pathsAreClose
 import com.rjnr.thaiwrter.utils.MLStrokeValidator
 import com.rjnr.thaiwrter.utils.SoundManager
+import com.rjnr.thaiwrter.utils.TelemetryLogger
 import kotlinx.coroutines.NonCancellable.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -41,7 +42,8 @@ enum class PracticeStep {
 class CharacterPracticeViewModel(
     private val repository: ThaiLanguageRepository,
     private val mlStrokeValidator: MLStrokeValidator,
-    private val soundManager: SoundManager
+    private val soundManager: SoundManager,
+    private val telemetry: TelemetryLogger
 ) : ViewModel() {
 
     // all characters
@@ -96,6 +98,13 @@ class CharacterPracticeViewModel(
             crossFadeAnimation.snapTo(0f)
         }
         _practiceStep.value = PracticeStep.GUIDE_AND_TRACE
+        telemetry.logEvent(
+                "practice_step",
+                mapOf(
+                        "step" to PracticeStep.GUIDE_AND_TRACE.name,
+                        "characterId" to _currentCharacter.value.id
+                )
+        )
     }
 
     private fun loadNextCharacter() {
@@ -104,7 +113,12 @@ class CharacterPracticeViewModel(
         if (currentCharacterIndex >= allCharacters.size) {
             currentCharacterIndex = 0
         }
-        _currentCharacter.value = allCharacters[currentCharacterIndex]
+        val character = allCharacters[currentCharacterIndex]
+        _currentCharacter.value = character
+        telemetry.logEvent(
+            "practice_character_change",
+            mapOf("characterId" to character.id, "direction" to "next")
+        )
     }
 
     private fun loadPreviousCharacter() {
@@ -113,12 +127,20 @@ class CharacterPracticeViewModel(
 //        if (currentCharacterIndex >= allCharacters.size) {
 //            currentCharacterIndex = 0
 //        }
-        _currentCharacter.value = allCharacters[currentCharacterIndex]
+        val character = allCharacters[currentCharacterIndex]
+        _currentCharacter.value = character
+        telemetry.logEvent(
+            "practice_character_change",
+            mapOf("characterId" to character.id, "direction" to "previous")
+        )
     }
 
     private fun initialLoadAndPrepareCharacter() {
         loadNextCharacter()
         setupForNewCharacter()
+        telemetry.logEvent(
+            "characters_loaded",
+        )
     }
 
     private fun loadNextCharacterAndPrepareAnimation() {
@@ -174,6 +196,10 @@ class CharacterPracticeViewModel(
                 _guideAnimationProgress.stop() // Stop any ongoing animation
                 _guideAnimationProgress.snapTo(1f) // Ensure the animated part is fully "drawn" if we want to show it statically
             }
+            telemetry.logEvent(
+                    "practice_trace_started",
+                    mapOf("characterId" to _currentCharacter.value.id)
+            )
         }
     }
 
@@ -194,11 +220,29 @@ class CharacterPracticeViewModel(
                 PracticeStep.CROSS_FADING_WRITE
             }
             _practiceStep.value = targetStep
+            telemetry.logEvent(
+                    "practice_stroke_matched",
+                    mapOf(
+                            "characterId" to char.id,
+                            "strokeIndex" to _currentStrokeIndex.value,
+                            "step" to targetStep.name
+                    )
+            )
+        } else {
+            telemetry.logEvent(
+                    "practice_stroke_mismatch",
+                    mapOf(
+                            "characterId" to char.id,
+                            "strokeIndex" to _currentStrokeIndex.value,
+                            "step" to _practiceStep.value.name
+                    )
+            )
         }
     }
 
     fun playCurrentCharacterSound() {
         _currentCharacter.value.let {
+            telemetry.logEvent("practice_audio_play", mapOf("characterId" to it.id))
             soundManager.playSoundForCharacter(it.id)
             Log.d("CharacterPracticeViewModel", "Playing sound for character: ${it.id}")
         }
@@ -251,6 +295,13 @@ class CharacterPracticeViewModel(
 
                 else -> {}
             }
+            telemetry.logEvent(
+                    "practice_step",
+                    mapOf(
+                            "step" to _practiceStep.value.name,
+                            "characterId" to _currentCharacter.value.id
+                    )
+            )
         }
     }
 
