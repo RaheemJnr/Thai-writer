@@ -37,6 +37,6 @@ val appModule = module {
     viewModel { OnboardingStatusViewModel(get()) }
     viewModel { MainViewModel(get()) }
     viewModel { ProgressViewModel(get()) }
-    viewModel { CharacterPracticeViewModel(get(), get(), get()) }
+    viewModel { CharacterPracticeViewModel(get(), get(), get(),get()) }
     viewModel { FreewritingViewModel(get(), get()) }
 }
